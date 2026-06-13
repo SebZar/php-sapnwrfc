@@ -595,7 +595,6 @@ rfc_set_value_return_t rfc_set_table_row(RFC_STRUCTURE_HANDLE row, zval *value, 
             return RFC_SET_VALUE_ERROR;
         }
 
-        memcpy(field_desc.name, field_name_u, strlenU(field_name_u));
         free((char *)field_name_u);
 
         if (rfc_set_field_value(row, field_desc, val) == RFC_SET_VALUE_ERROR) {
@@ -917,6 +916,7 @@ zval rfc_get_table_value(DATA_CONTAINER_HANDLE h, SAP_UC *name, unsigned char rt
         line_value = rfc_get_table_line(line_handle, zname, rtrim_enabled);
         if (ZVAL_IS_NULL(&line_value)) {
             // error; exception has been thrown
+            zval_ptr_dtor(&value);
             ZVAL_NULL(&value);
             zend_string_release(zname);
             return value;
@@ -1276,6 +1276,7 @@ zval rfc_get_table_line(RFC_STRUCTURE_HANDLE line, zend_string *param_name, unsi
         if (rc != RFC_OK) {
             sapnwrfc_throw_function_exception(error_info, "Failed to get TABLE line field description for parameter \"%s\"", ZSTR_VAL(param_name));
 
+            zval_ptr_dtor(&value);
             ZVAL_NULL(&value);
             return value;
         }
@@ -1283,6 +1284,7 @@ zval rfc_get_table_line(RFC_STRUCTURE_HANDLE line, zend_string *param_name, unsi
         field_value = rfc_get_field_value(line, field_desc, rtrim_enabled);
         if (ZVAL_IS_NULL(&field_value)) {
             // error; exception has been thrown
+            zval_ptr_dtor(&value);
             ZVAL_NULL(&value);
             return value;
         }
@@ -1503,11 +1505,13 @@ static int rfc_describe_type(RFC_TYPE_DESC_HANDLE type_desc_handle, zval *type_d
     for (unsigned int field_idx = 0; field_idx < field_count; field_idx++) {
         rc = RfcGetFieldDescByIndex(type_desc_handle, field_idx, &field_desc, &error_info);
         if (rc != RFC_OK) {
+            zval_ptr_dtor(type_description);
             return -1;
         }
 
         // wrap the field description in an array
         if (rfc_wrap_field_description(field_desc, &field_description) == -1) {
+            zval_ptr_dtor(type_description);
             return -1;
         }
 
@@ -1540,6 +1544,7 @@ static int rfc_wrap_parameter_description(RFC_PARAMETER_DESC parameter_desc, zva
     // for structures and tables, there is additional type information available
     if (parameter_desc.typeDescHandle) {
         if (rfc_describe_type(parameter_desc.typeDescHandle, &type_description) == -1) {
+            zval_ptr_dtor(parameter_description);
             return -1;
         }
 
@@ -1566,6 +1571,7 @@ static int rfc_wrap_field_description(RFC_FIELD_DESC field_desc, zval *type_desc
     // if this field is a complex type, describe it
     if (field_desc.typeDescHandle) {
         if (rfc_describe_type(field_desc.typeDescHandle, &type_def) == -1) {
+            zval_ptr_dtor(type_description);
             return -1;
         }
 
@@ -1597,11 +1603,13 @@ int rfc_describe_function_interface(RFC_FUNCTION_DESC_HANDLE function_desc_handl
     for (int param_idx = 0; param_idx < param_count; param_idx++) {
         rc = RfcGetParameterDescByIndex(function_desc_handle, param_idx, &parameter_desc, &error_info);
         if (rc != RFC_OK) {
+            zval_ptr_dtor(function_description);
             return -1;
         }
 
         // wrap the type information in an array
         if (rfc_wrap_parameter_description(parameter_desc, &parameter_description) == -1) {
+            zval_ptr_dtor(function_description);
             return -1;
         }
 
