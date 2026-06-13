@@ -607,6 +607,7 @@ PHP_METHOD(Connection, getFunction)
     zend_error_handling zeh;
     zend_string *function_name;
     zend_string *parameter_name;
+    zend_bool invalidate_cache = 0;
     zval zv_true;
     unsigned i;
 
@@ -618,7 +619,7 @@ PHP_METHOD(Connection, getFunction)
 
     zend_replace_error_handling(EH_THROW, NULL, &zeh);
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S", &function_name) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S|b", &function_name, &invalidate_cache) == FAILURE) {
         zend_restore_error_handling(&zeh);
 
         return;
@@ -633,8 +634,8 @@ PHP_METHOD(Connection, getFunction)
         RETURN_NULL();
     }
 
-    // clear the function desc cache before looking up the function if requested
-    if (!intern->use_function_desc_cache) {
+    // clear the function desc cache if the connection disables caching or the caller requests invalidation
+    if (!intern->use_function_desc_cache || invalidate_cache) {
         (void) rfc_clear_function_desc_cache(function_name, intern->system_id);
         // if clearing the cache did not work, we just try to continue anyway...
     }
