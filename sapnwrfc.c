@@ -661,7 +661,7 @@ PHP_METHOD(Connection, getFunction)
     // add a 'name' property to the function object. this helps to identify the object
     // when dumping it with var_dump()
 #if PHP_VERSION_ID >= 80000
-    zend_update_property_str(sapnwrfc_function_ce, Z_OBJ_P(return_value), "name", sizeof("name")-1, zend_string_copy(function_name));
+    zend_update_property_str(sapnwrfc_function_ce, Z_OBJ_P(return_value), "name", sizeof("name")-1, function_name);
 #else
     add_property_str(return_value, "name", zend_string_copy(function_name));
 #endif
@@ -1149,7 +1149,7 @@ PHP_METHOD(RemoteFunction, getName)
 
     intern = SAPNWRFC_FUNCTION_OBJ_P(getThis());
 
-    RETURN_STR(intern->name);
+    RETURN_STR_COPY(intern->name);
 }
 
 static void register_sapnwrfc_connection_object()
