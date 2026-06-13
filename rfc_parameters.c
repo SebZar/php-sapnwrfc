@@ -912,8 +912,23 @@ zval rfc_get_table_value(DATA_CONTAINER_HANDLE h, SAP_UC *name, unsigned char rt
 
     array_init(&value);
     for(i = 0; i < table_len; i++) {
-        RfcMoveTo(h, i, NULL);
-        line_handle = RfcGetCurrentRow(h, NULL);
+        rc = RfcMoveTo(h, i, &error_info);
+        if (rc != RFC_OK) {
+            sapnwrfc_throw_function_exception(error_info, "Failed to move to row %u in TABLE parameter \"%s\"", i, ZSTR_VAL(zname));
+            zval_ptr_dtor(&value);
+            ZVAL_NULL(&value);
+            zend_string_release(zname);
+            return value;
+        }
+
+        line_handle = RfcGetCurrentRow(h, &error_info);
+        if (line_handle == NULL) {
+            sapnwrfc_throw_function_exception(error_info, "Failed to get row %u in TABLE parameter \"%s\"", i, ZSTR_VAL(zname));
+            zval_ptr_dtor(&value);
+            ZVAL_NULL(&value);
+            zend_string_release(zname);
+            return value;
+        }
 
         line_value = rfc_get_table_line(line_handle, zname, rtrim_enabled);
         if (ZVAL_IS_NULL(&line_value)) {
