@@ -773,7 +773,7 @@ PHP_METHOD(Connection, setTraceLevel)
     zend_error_handling zeh;
     RFC_ERROR_INFO error_info;
     RFC_RC rc = RFC_OK;
-    unsigned int level;
+    zend_long level;
 
     zend_replace_error_handling(EH_THROW, NULL, &zeh);
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &level) == FAILURE) {
@@ -789,7 +789,7 @@ PHP_METHOD(Connection, setTraceLevel)
         return;
     }
 
-    rc = RfcSetTraceLevel(NULL, NULL, level, &error_info);
+    rc = RfcSetTraceLevel(NULL, NULL, (unsigned int)level, &error_info);
     if (rc != RFC_OK) {
         sapnwrfc_throw_connection_exception(error_info, "Failed to set trace level");
 
@@ -1098,7 +1098,7 @@ PHP_METHOD(RemoteFunction, isParameterActive)
 
     rc = RfcIsConnectionHandleValid(intern->rfc_handle, &is_valid, &error_info);
     if (rc != RFC_OK || is_valid == 0) {
-        sapnwrfc_throw_function_exception_ex("Failed to set status of parameter %s: connection closed.", ZSTR_VAL(parameter_name));
+        sapnwrfc_throw_function_exception_ex("Failed to get status of parameter %s: connection closed.", ZSTR_VAL(parameter_name));
 
         RETURN_NULL();
     }
