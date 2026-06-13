@@ -81,6 +81,8 @@ PHP_METHOD(Connection, ping);
 PHP_METHOD(Connection, getFunction);
 PHP_METHOD(Connection, getSSOTicket);
 PHP_METHOD(Connection, close);
+PHP_METHOD(Connection, isOpen);
+PHP_METHOD(Connection, reconnect);
 PHP_METHOD(Connection, setIniPath);
 PHP_METHOD(Connection, reloadIniFile);
 PHP_METHOD(Connection, setTraceDir);
@@ -116,6 +118,12 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(arginfo_Connection_getSSOTicket, IS_STRING,
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(arginfo_Connection_close, _IS_BOOL, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(arginfo_Connection_isOpen, _IS_BOOL, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(arginfo_Connection_reconnect, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_Connection_setIniPath, 0, 1, _IS_BOOL, 0)
@@ -180,6 +188,8 @@ static zend_function_entry sapnwrfc_connection_class_functions[] = {
     PHP_ME(Connection, getFunction, arginfo_Connection_getFunction, ZEND_ACC_PUBLIC | ZEND_ACC_HAS_RETURN_TYPE)
     PHP_ME(Connection, getSSOTicket, arginfo_Connection_getSSOTicket, ZEND_ACC_PUBLIC | ZEND_ACC_HAS_RETURN_TYPE)
     PHP_ME(Connection, close, arginfo_Connection_close, ZEND_ACC_PUBLIC | ZEND_ACC_HAS_RETURN_TYPE)
+    PHP_ME(Connection, isOpen, arginfo_Connection_isOpen, ZEND_ACC_PUBLIC | ZEND_ACC_HAS_RETURN_TYPE)
+    PHP_ME(Connection, reconnect, arginfo_Connection_reconnect, ZEND_ACC_PUBLIC | ZEND_ACC_HAS_RETURN_TYPE)
     PHP_ME(Connection, setIniPath, arginfo_Connection_setIniPath, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_HAS_RETURN_TYPE)
     PHP_ME(Connection, reloadIniFile, arginfo_Connection_reloadIniFile, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_HAS_RETURN_TYPE)
     PHP_ME(Connection, setTraceDir, arginfo_Connection_setTraceDir, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_HAS_RETURN_TYPE)
@@ -502,6 +512,67 @@ PHP_METHOD(Connection, close)
     sapnwrfc_throw_connection_exception(error_info, "Could not close connection");
 
     RETURN_NULL();
+}
+
+PHP_METHOD(Connection, isOpen)
+{
+    sapnwrfc_connection_object *intern;
+
+    zend_parse_parameters_none();
+
+    intern = SAPNWRFC_CONNECTION_OBJ_P(getThis());
+
+    RETURN_BOOL(intern->rfc_handle != NULL);
+}
+
+PHP_METHOD(Connection, reconnect)
+{
+    sapnwrfc_connection_object *intern;
+    RFC_ERROR_INFO error_info;
+    RFC_RC rc = RFC_OK;
+    RFC_ATTRIBUTES attributes;
+
+    zend_parse_parameters_none();
+
+    intern = SAPNWRFC_CONNECTION_OBJ_P(getThis());
+
+    if (intern->rfc_login_params == NULL || intern->rfc_login_params_len == 0) {
+        zend_throw_exception(sapnwrfc_connection_exception_ce, "Cannot reconnect: no connection parameters stored", 0);
+
+        RETURN_NULL();
+    }
+
+    // close existing connection if open
+    if (intern->rfc_handle != NULL) {
+        RfcCloseConnection(intern->rfc_handle, &error_info);
+        intern->rfc_handle = NULL;
+    }
+
+    // release stale system_id
+    if (intern->system_id) {
+        zend_string_release(intern->system_id);
+        intern->system_id = NULL;
+    }
+
+    intern->rfc_handle = RfcOpenConnection(intern->rfc_login_params, intern->rfc_login_params_len, &error_info);
+    if (!intern->rfc_handle) {
+        sapnwrfc_throw_connection_exception(error_info, "Could not reconnect");
+
+        RETURN_NULL();
+    }
+
+    rc = RfcGetConnectionAttributes(intern->rfc_handle, &attributes, &error_info);
+    if (rc != RFC_OK) {
+        RfcCloseConnection(intern->rfc_handle, &error_info);
+        intern->rfc_handle = NULL;
+        sapnwrfc_throw_connection_exception(error_info, "Failed to read connection attributes after reconnect");
+
+        RETURN_NULL();
+    }
+
+    intern->system_id = sapuc_to_zend_string(attributes.sysId);
+
+    RETURN_TRUE;
 }
 
 PHP_METHOD(Connection, getAttributes)
