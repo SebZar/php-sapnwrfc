@@ -412,9 +412,9 @@ rfc_set_value_return_t rfc_set_int2_value(DATA_CONTAINER_HANDLE h, SAP_UC *name,
         return RFC_SET_VALUE_ERROR;
     }
 
-    if (Z_LVAL_P(value) > 32767 || Z_LVAL_P(value) < -32767) {
+    if (Z_LVAL_P(value) > 32767 || Z_LVAL_P(value) < -32768) {
         zname = sapuc_to_zend_string(name);
-        sapnwrfc_throw_function_exception_ex("Failed to set INT2 parameter \"%s\", out of range (-32767 - 32767)", ZSTR_VAL(zname));
+        sapnwrfc_throw_function_exception_ex("Failed to set INT2 parameter \"%s\", out of range (-32768 - 32767)", ZSTR_VAL(zname));
         zend_string_release(zname);
         return RFC_SET_VALUE_ERROR;
     }
@@ -1017,6 +1017,15 @@ zval rfc_get_bcd_decfloat_value(DATA_CONTAINER_HANDLE h, SAP_UC *name, unsigned 
             ZVAL_NULL(&value);
             return value;
         }
+    } else if (rc != RFC_OK) {
+        free(buf);
+
+        zname = sapuc_to_zend_string(name);
+        sapnwrfc_throw_function_exception(error_info, "Failed to get BCD/DECFLOAT parameter \"%s\"", ZSTR_VAL(zname));
+        zend_string_release(zname);
+
+        ZVAL_NULL(&value);
+        return value;
     }
 
     value = sapuc_to_zval_len(buf, result_len);
@@ -1113,7 +1122,7 @@ zval rfc_get_int8_value(DATA_CONTAINER_HANDLE h, SAP_UC *name)
         return value;
     }
 
-    ZVAL_LONG(&value, (int)buf);
+    ZVAL_LONG(&value, (zend_long)buf);
 
     return value;
 }
