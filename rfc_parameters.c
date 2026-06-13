@@ -261,19 +261,20 @@ rfc_set_value_return_t rfc_set_float_value(DATA_CONTAINER_HANDLE h, SAP_UC *name
         value = Z_REFVAL_P(value);
     }
 
-    // if argument type is int, try to convert to double
-    if (Z_TYPE_P(value) == IS_LONG) {
-        convert_to_double(value);
-    }
+    RFC_FLOAT float_value;
 
-    if (Z_TYPE_P(value) != IS_DOUBLE) {
+    if (Z_TYPE_P(value) == IS_LONG) {
+        float_value = (RFC_FLOAT)Z_LVAL_P(value);
+    } else if (Z_TYPE_P(value) == IS_DOUBLE) {
+        float_value = (RFC_FLOAT)Z_DVAL_P(value);
+    } else {
         zname = sapuc_to_zend_string(name);
         zend_type_error("Failed to set FLOAT parameter \"%s\". Expected int or double, %s given", ZSTR_VAL(zname), zend_zval_type_name(value));
         zend_string_release(zname);
         return RFC_SET_VALUE_ERROR;
     }
 
-    rc = RfcSetFloat(h, name, (RFC_FLOAT)Z_DVAL_P(value), &error_info);
+    rc = RfcSetFloat(h, name, float_value, &error_info);
 
     if (rc != RFC_OK) {
         zname = sapuc_to_zend_string(name);
@@ -297,13 +298,16 @@ rfc_set_value_return_t rfc_set_bcd_decfloat_value(DATA_CONTAINER_HANDLE h, SAP_U
         value = Z_REFVAL_P(value);
     }
 
-    // if argument type is int or double, convert to string
-    if (Z_TYPE_P(value) == IS_LONG || Z_TYPE_P(value) == IS_DOUBLE) {
-        convert_to_string(value);
-    }
-
-    // if the value is still not a string, error out
-    if (Z_TYPE_P(value) != IS_STRING) {
+    if (Z_TYPE_P(value) == IS_STRING) {
+        value_u = zval_to_sapuc(value);
+    } else if (Z_TYPE_P(value) == IS_LONG || Z_TYPE_P(value) == IS_DOUBLE) {
+        // convert to string via a local copy to avoid mutating the caller's zval
+        zval tmp;
+        ZVAL_COPY_VALUE(&tmp, value);
+        convert_to_string(&tmp);
+        value_u = zval_to_sapuc(&tmp);
+        zval_ptr_dtor(&tmp);
+    } else {
         zname = sapuc_to_zend_string(name);
         zend_type_error("Failed to set BCD/DECFLOAT parameter \"%s\". Expected int or double or string, %s given", ZSTR_VAL(zname), zend_zval_type_name(value));
         zend_string_release(zname);
@@ -311,8 +315,6 @@ rfc_set_value_return_t rfc_set_bcd_decfloat_value(DATA_CONTAINER_HANDLE h, SAP_U
         return RFC_SET_VALUE_ERROR;
     }
 
-    // set the parameter
-    value_u = zval_to_sapuc(value);
     rc = RfcSetString(h, name, value_u, strlenU(value_u), &error_info);
     free((char *)value_u);
 
