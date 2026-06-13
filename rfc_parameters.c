@@ -1077,7 +1077,7 @@ zval rfc_get_int1_value(DATA_CONTAINER_HANDLE h, SAP_UC *name)
         return value;
     }
 
-    ZVAL_LONG(&value, (int)buf);
+    ZVAL_LONG(&value, (zend_long)buf);
 
     return value;
 }
@@ -1100,7 +1100,7 @@ zval rfc_get_int2_value(DATA_CONTAINER_HANDLE h, SAP_UC *name)
         return value;
     }
 
-    ZVAL_LONG(&value, (int)buf);
+    ZVAL_LONG(&value, (zend_long)buf);
 
     return value;
 }

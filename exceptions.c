@@ -20,18 +20,6 @@ zend_class_entry *sapnwrfc_exception_ce;
 zend_class_entry *sapnwrfc_connection_exception_ce;
 zend_class_entry *sapnwrfc_function_exception_ce;
 
-typedef struct _sapnwrfc_exception_object {
-    zend_object *zobj;
-} sapnwrfc_exception_object;
-
-typedef struct _sapnwrfc_connection_exception_object {
-    zend_object zobj;
-} sapnwrfc_connection_exception_object;
-
-typedef struct _sapnwrfc_function_exception_object {
-    zend_object zobj;
-} sapnwrfc_functioncall_exception_object;
-
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(arginfo_Exception_getErrorInfo, IS_ARRAY, 1)
 ZEND_END_ARG_INFO()
 
