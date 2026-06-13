@@ -338,6 +338,14 @@ static void sapnwrfc_open_connection(sapnwrfc_connection_object *intern, HashTab
         }
     } ZEND_HASH_FOREACH_END();
 
+    intern->rfc_login_params_len = i;
+
+    if (i == 0) {
+        zend_throw_exception(sapnwrfc_connection_exception_ce, "No valid (string) connection parameters given", 0);
+
+        return;
+    }
+
     intern->rfc_handle = RfcOpenConnection(intern->rfc_login_params, intern->rfc_login_params_len, &error_info);
 
     if (!intern->rfc_handle) {
@@ -509,6 +517,13 @@ PHP_METHOD(Connection, getAttributes)
     zend_restore_error_handling(&zeh);
 
     intern = SAPNWRFC_CONNECTION_OBJ_P(getThis());
+
+    if (intern->rfc_handle == NULL) {
+        zend_throw_exception(sapnwrfc_connection_exception_ce, "Failed to get connection attributes: connection closed.", 0);
+
+        RETURN_NULL();
+    }
+
     rc = RfcGetConnectionAttributes(intern->rfc_handle, &attributes, &error_info);
     if (rc != RFC_OK) {
         sapnwrfc_throw_connection_exception(error_info, "Could not fetch connection attributes");
@@ -549,7 +564,7 @@ PHP_METHOD(Connection, getAttributes)
 #endif
 
 #ifdef HAVE_RFC_ATTRIBUTES_PARTNERIPV6
-    add_assoc_str(return_value, "partnerIPv6", sapuc_to_zend_string(attributes.partnerIP));
+    add_assoc_str(return_value, "partnerIPv6", sapuc_to_zend_string(attributes.partnerIPv6));
 #else
     add_assoc_null(return_value, "partnerIPv6");
 #endif
@@ -568,6 +583,13 @@ PHP_METHOD(Connection, ping)
     zend_restore_error_handling(&zeh);
 
     intern = SAPNWRFC_CONNECTION_OBJ_P(getThis());
+
+    if (intern->rfc_handle == NULL) {
+        zend_throw_exception(sapnwrfc_connection_exception_ce, "Failed to ping: connection closed.", 0);
+
+        RETURN_NULL();
+    }
+
     rc = RfcPing(intern->rfc_handle, &error_info);
     if (rc != RFC_OK) {
         sapnwrfc_throw_connection_exception(error_info, "Failed to ping connection");
@@ -604,6 +626,12 @@ PHP_METHOD(Connection, getFunction)
     zend_restore_error_handling(&zeh);
 
     intern = SAPNWRFC_CONNECTION_OBJ_P(getThis());
+
+    if (intern->rfc_handle == NULL) {
+        zend_throw_exception(sapnwrfc_connection_exception_ce, "Failed to get function: connection closed.", 0);
+
+        RETURN_NULL();
+    }
 
     // clear the function desc cache before looking up the function if requested
     if (!intern->use_function_desc_cache) {
@@ -832,6 +860,7 @@ PHP_METHOD(RemoteFunction, invoke)
     RFC_FUNCTION_HANDLE function_handle;
     RFC_PARAMETER_DESC parameter_desc;
     int is_active;
+    int is_valid;
     unsigned int i = 0;
     HashTable *in_parameters_hash = NULL;
     HashTable *options_hash = NULL;
@@ -852,6 +881,13 @@ PHP_METHOD(RemoteFunction, invoke)
     zend_restore_error_handling(&zeh);
 
     intern = SAPNWRFC_FUNCTION_OBJ_P(getThis());
+
+    rc = RfcIsConnectionHandleValid(intern->rfc_handle, &is_valid, &error_info);
+    if (rc != RFC_OK || is_valid == 0) {
+        sapnwrfc_throw_function_exception_ex("Failed to invoke function %s: connection closed.", ZSTR_VAL(intern->name));
+
+        RETURN_NULL();
+    }
 
     // create the function handle
     function_handle = RfcCreateFunction(intern->function_desc_handle, &error_info);
