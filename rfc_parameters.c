@@ -1617,7 +1617,7 @@ int rfc_describe_function_interface(RFC_FUNCTION_DESC_HANDLE function_desc_handl
     array_init(function_description);
 
     // loop over the parameters and get type information
-    for (int param_idx = 0; param_idx < param_count; param_idx++) {
+    for (unsigned int param_idx = 0; param_idx < param_count; param_idx++) {
         rc = RfcGetParameterDescByIndex(function_desc_handle, param_idx, &parameter_desc, &error_info);
         if (rc != RFC_OK) {
             zval_ptr_dtor(function_description);
