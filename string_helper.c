@@ -90,6 +90,10 @@ zend_string *sapuc_to_zend_string(SAP_UC *uc_str)
 
     zv = sapuc_to_zval_len_ex(uc_str, uc_str_len, 0);
 
+    if (Z_TYPE(zv) == IS_NULL) {
+        return zend_string_init("", 0, 0);
+    }
+
     out = zend_string_init(Z_STRVAL(zv), Z_STRLEN(zv), 0);
     zval_ptr_dtor(&zv); // release the zval
 
