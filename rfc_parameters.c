@@ -1415,6 +1415,7 @@ zval rfc_get_parameter_value(RFC_FUNCTION_HANDLE function_handle,
                 sapnwrfc_throw_function_exception(error_info, "Failed to get TABLE handle for parameter \"%s\"", ZSTR_VAL(name));
 
                 ZVAL_NULL(&value);
+                return value;
             }
             value = rfc_get_table_value(table_handle, parameter_name_u, rtrim_enabled);
             break;
