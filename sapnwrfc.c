@@ -855,7 +855,7 @@ PHP_METHOD(RemoteFunction, invoke)
 
     // create the function handle
     function_handle = RfcCreateFunction(intern->function_desc_handle, &error_info);
-    if (rc != RFC_OK) {
+    if (function_handle == NULL) {
         sapnwrfc_throw_function_exception(error_info, "Failed to create function handle");
 
         RETURN_NULL();
