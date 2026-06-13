@@ -160,6 +160,33 @@ class Connection
     public function close(): bool {}
 
     /**
+     * Check whether the connection handle is currently open.
+     *
+     * Returns true if the connection has not been closed, false otherwise.
+     * This is a local check only and does not perform a network round-trip;
+     * use ping() to verify liveness on the network level.
+     *
+     * @return bool
+     */
+    public function isOpen(): bool {}
+
+    /**
+     * Close and reopen the connection using the original connection parameters.
+     *
+     * If the connection is currently open it is closed first. A new connection
+     * is then established with the parameters that were passed to the
+     * constructor. Throws ConnectionException if the reconnect fails.
+     *
+     * Note: RemoteFunction objects obtained before the reconnect hold a stale
+     * connection handle and must be re-fetched via getFunction() afterwards.
+     *
+     * @return bool True on success.
+     *
+     * @throws ConnectionException if the reconnect fails.
+     */
+    public function reconnect(): bool {}
+
+    /**
      * Sets the path to the sapnwrfc.ini file.
      *
      * By default, the INI file is searched for in the current directory.
