@@ -42,4 +42,7 @@ playground/
 todo.txt
 .gdbinit
 .vscode
+.vs/
+.claude/
+CLAUDE.md
 *.o
