@@ -671,6 +671,7 @@ PHP_METHOD(Connection, getFunction)
     if (rc != RFC_OK) {
         sapnwrfc_throw_function_exception(error_info, "Failed to get parameter count for function %s", ZSTR_VAL(func_intern->name));
 
+        zval_ptr_dtor(return_value);
         RETURN_NULL();
     }
 
@@ -682,6 +683,7 @@ PHP_METHOD(Connection, getFunction)
         if (rc != RFC_OK) {
             sapnwrfc_throw_function_exception(error_info, "Failed to get parameter description for function %s", ZSTR_VAL(func_intern->name));
 
+            zval_ptr_dtor(return_value);
             RETURN_NULL();
         }
 
@@ -1001,6 +1003,7 @@ PHP_METHOD(RemoteFunction, invoke)
             sapnwrfc_throw_function_exception(error_info, "Failed to get parameter description for function %s", ZSTR_VAL(intern->name));
             RfcDestroyFunction(function_handle, &error_info);
 
+            zval_ptr_dtor(return_value);
             RETURN_NULL();
         }
 
@@ -1010,6 +1013,7 @@ PHP_METHOD(RemoteFunction, invoke)
             sapnwrfc_throw_function_exception(error_info, "Failed to get parameter status");
             RfcDestroyFunction(function_handle, &error_info);
 
+            zval_ptr_dtor(return_value);
             RETURN_NULL();
         }
 
@@ -1030,6 +1034,7 @@ PHP_METHOD(RemoteFunction, invoke)
                     zend_string_release(tmp);
                     RfcDestroyFunction(function_handle, &error_info);
                     // getting the parameter failed; an exception has been thrown
+                    zval_ptr_dtor(return_value);
                     RETURN_NULL();
                 }
 
