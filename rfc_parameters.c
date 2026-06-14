@@ -320,6 +320,15 @@ rfc_set_value_return_t rfc_set_int_value(DATA_CONTAINER_HANDLE h, SAP_UC *name, 
         return RFC_SET_VALUE_ERROR;
     }
 
+#if ZEND_ENABLE_ZVAL_LONG64
+    if (Z_LVAL_P(value) > 2147483647LL || Z_LVAL_P(value) < -2147483648LL) {
+        zname = sapuc_to_zend_string(name);
+        sapnwrfc_throw_function_exception_ex("Failed to set INT parameter \"%s\", out of range (-2147483648 - 2147483647)", ZSTR_VAL(zname));
+        zend_string_release(zname);
+        return RFC_SET_VALUE_ERROR;
+    }
+#endif
+
     rc = RfcSetInt(h, name, (RFC_INT)Z_LVAL_P(value), &error_info);
 
     if (rc != RFC_OK) {
