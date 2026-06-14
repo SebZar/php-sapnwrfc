@@ -311,8 +311,6 @@ static void sapnwrfc_connection_set_options(sapnwrfc_connection_object *intern, 
     ZEND_HASH_FOREACH_STR_KEY_VAL(options, key, val) {
         if (key) {
             if (strcasecmp(ZSTR_VAL(key), "use_function_desc_cache") == 0) {
-                convert_to_boolean(val);
-
                 intern->use_function_desc_cache = zend_is_true(val);
             }
         }
@@ -1066,7 +1064,6 @@ PHP_METHOD(RemoteFunction, invoke)
     if (options_hash) {
         zval *rtrim;
         if ((rtrim = zend_hash_str_find(options_hash, "rtrim", strlen("rtrim"))) != NULL) {
-            convert_to_boolean(rtrim);
             rtrim_enabled = zend_is_true(rtrim);
         }
     }

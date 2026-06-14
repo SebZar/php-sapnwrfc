@@ -138,11 +138,11 @@ void sapnwrfc_register_exceptions()
     sapnwrfc_exception_ce = zend_register_internal_class_ex(&ce, spl_ce_RuntimeException);
 
     zval property_errorInfo_default_value;
-	ZVAL_NULL(&property_errorInfo_default_value);
-	zend_string *property_errorInfo_name = zend_string_init("errorInfo", sizeof("errorInfo") - 1, 1);
-	zend_declare_typed_property(sapnwrfc_exception_ce, property_errorInfo_name, &property_errorInfo_default_value,
+    ZVAL_NULL(&property_errorInfo_default_value);
+    zend_string *property_errorInfo_name = zend_string_init("errorInfo", sizeof("errorInfo") - 1, 1);
+    zend_declare_typed_property(sapnwrfc_exception_ce, property_errorInfo_name, &property_errorInfo_default_value,
         ZEND_ACC_PROTECTED, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY|MAY_BE_NULL));
-	zend_string_release(property_errorInfo_name);
+    zend_string_release(property_errorInfo_name);
 
     INIT_CLASS_ENTRY(ce, "SAPNWRFC\\ConnectionException", NULL);
     sapnwrfc_connection_exception_ce = zend_register_internal_class_ex(&ce, sapnwrfc_exception_ce);
