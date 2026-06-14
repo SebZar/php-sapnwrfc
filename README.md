@@ -13,12 +13,6 @@ The extension is tested with PHP 8.1+ using SAP NW RFC SDK version 7.50.
 
 The repository is called `php7-sapnwrfc` for historical reasons only.
 
-### Older versions
-
-The `1.x` branch supports PHP 7.2+ with SAP NW RFC SDK version 7.20 supported up to release 1.3.
-
-**This version is not maintained any more.**
-
 ## Usage
 
 You can find detailed instructions on how to build and use this extension at https://gkralik.github.io/php7-sapnwrfc.
