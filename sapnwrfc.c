@@ -334,12 +334,14 @@ static void sapnwrfc_open_connection(sapnwrfc_connection_object *intern, HashTab
 
     ZEND_HASH_FOREACH_STR_KEY_VAL(connection_params, key, val) {
         if (key) { // is string
-            ZVAL_DEREF(val);
-            convert_to_string_ex(val);
+            zval str_copy;
+            ZVAL_COPY_DEREF(&str_copy, val);
+            convert_to_string(&str_copy);
 
             // those are free'd in sapnwrfc_connection_object_free
             intern->rfc_login_params[i].name = zend_string_to_sapuc(key);
-            intern->rfc_login_params[i].value = zval_to_sapuc(val);
+            intern->rfc_login_params[i].value = zval_to_sapuc(&str_copy);
+            zval_ptr_dtor(&str_copy);
 
             i++;
         }
