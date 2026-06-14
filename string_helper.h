@@ -7,10 +7,10 @@
  * Author: Gregor Kralik <g.kralik+php-sapnwrfc (at) gmail.com>
  */
 
-#include "sapnwrfc.h"
-
 #ifndef _STRING_HELPER_H
 #define _STRING_HELPER_H
+
+#include "sapnwrfc.h"
 
 SAP_UC *zval_to_sapuc(zval *zv);
 SAP_UC *zend_string_to_sapuc(zend_string *str);

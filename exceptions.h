@@ -7,10 +7,10 @@
  * Author: Gregor Kralik <g.kralik+php-sapnwrfc (at) gmail.com>
  */
 
-#include "sapnwrfc.h"
-
 #ifndef _EXCEPTIONS_H
 #define _EXCEPTIONS_H
+
+#include "sapnwrfc.h"
 
 #if PHP_VERSION_ID >= 80000
 #   define SAPNWRFC_EXC_Z_OBJ_OR_ZVAL(x) Z_OBJ(x)
