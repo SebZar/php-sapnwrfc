@@ -28,42 +28,26 @@ static zend_function_entry sapnwrfc_exception_class_functions[] = {
     PHP_FE_END
 };
 
-void sapnwrfc_throw_connection_exception(RFC_ERROR_INFO error_info, char *msg, ...)
+static void sapnwrfc_throw_rfc_exception(zend_class_entry *ce, RFC_ERROR_INFO error_info, const char *message)
 {
-    va_list args;
-    zend_string *message;
     zval info;
     zval ex;
     zend_error_handling zeh;
 
-    va_start(args, msg);
-    message = vstrpprintf(0, msg, args);
-    va_end(args);
-
     array_init(&info);
-
-    zend_replace_error_handling(EH_THROW, sapnwrfc_connection_exception_ce, &zeh);
-
-    object_init_ex(&ex, sapnwrfc_connection_exception_ce);
-
-    zend_update_property_string(sapnwrfc_connection_exception_ce, SAPNWRFC_EXC_Z_OBJ_OR_ZVAL(ex), "message", sizeof("message") - 1, ZSTR_VAL(message));
-    zend_update_property_long(sapnwrfc_connection_exception_ce, SAPNWRFC_EXC_Z_OBJ_OR_ZVAL(ex), "code", sizeof("code") - 1, error_info.code);
-
-    // populate errorInfo array
     add_assoc_long(&info, "code", error_info.code);
     add_assoc_str(&info, "key", sapuc_to_zend_string(error_info.key));
     add_assoc_str(&info, "message", sapuc_to_zend_string(error_info.message));
 
-    switch(error_info.group) {
-        case LOGON_FAILURE:                   // Error message raised when logon fails
-        case COMMUNICATION_FAILURE:           // Problems with the network connection (or backend broke down and killed the connection)
-        case EXTERNAL_RUNTIME_FAILURE:        // Problems in the RFC runtime of the external program (i.e "this" library)
-            // no additional properties, just the generic one's from above
+    switch (error_info.group) {
+        case LOGON_FAILURE:
+        case COMMUNICATION_FAILURE:
+        case EXTERNAL_RUNTIME_FAILURE:
             break;
-        case ABAP_APPLICATION_FAILURE:        // ABAP Exception raised in ABAP function modules
-        case ABAP_RUNTIME_FAILURE:            // ABAP Message raised in ABAP function modules or in ABAP runtime of the backend (e.g Kernel)
-        case EXTERNAL_APPLICATION_FAILURE:    // Problems in the external program (e.g in the external server implementation)
-        case EXTERNAL_AUTHORIZATION_FAILURE:  // Problems raised in the authorization check handler provided by the external server implementation
+        case ABAP_APPLICATION_FAILURE:
+        case ABAP_RUNTIME_FAILURE:
+        case EXTERNAL_APPLICATION_FAILURE:
+        case EXTERNAL_AUTHORIZATION_FAILURE:
             add_assoc_str(&info, "abapMsgClass", sapuc_to_zend_string(error_info.abapMsgClass));
             add_assoc_str(&info, "abapMsgType", sapuc_to_zend_string(error_info.abapMsgType));
             add_assoc_str(&info, "abapMsgNumber", sapuc_to_zend_string(error_info.abapMsgNumber));
@@ -73,27 +57,37 @@ void sapnwrfc_throw_connection_exception(RFC_ERROR_INFO error_info, char *msg, .
             add_assoc_str(&info, "abapMsgV4", sapuc_to_zend_string(error_info.abapMsgV4));
             break;
         case RFC_OK: // LCOV_EXCL_START
+            zval_ptr_dtor(&info);
             zend_error(E_ERROR, "Internal error: exception handler called for RFC_OK");
-            zend_restore_error_handling(&zeh);
-            zend_string_release(message);
-
             return;
             // LCOV_EXCL_STOP
         default:
+            zval_ptr_dtor(&info);
             zend_error(E_ERROR, "Internal error: unknown error group");
-            zend_restore_error_handling(&zeh);
-            zend_string_release(message);
-
             return;
     }
 
-    zend_update_property(sapnwrfc_connection_exception_ce, SAPNWRFC_EXC_Z_OBJ_OR_ZVAL(ex), "errorInfo", sizeof("errorInfo") - 1, &info);
-
+    zend_replace_error_handling(EH_THROW, ce, &zeh);
+    object_init_ex(&ex, ce);
+    zend_update_property_string(ce, SAPNWRFC_EXC_Z_OBJ_OR_ZVAL(ex), "message", sizeof("message") - 1, message);
+    zend_update_property_long(ce, SAPNWRFC_EXC_Z_OBJ_OR_ZVAL(ex), "code", sizeof("code") - 1, error_info.code);
+    zend_update_property(ce, SAPNWRFC_EXC_Z_OBJ_OR_ZVAL(ex), "errorInfo", sizeof("errorInfo") - 1, &info);
     zval_ptr_dtor(&info);
-    zend_string_release(message);
-
     zend_throw_exception_object(&ex);
     zend_restore_error_handling(&zeh);
+}
+
+void sapnwrfc_throw_connection_exception(RFC_ERROR_INFO error_info, char *msg, ...)
+{
+    va_list args;
+    zend_string *message;
+
+    va_start(args, msg);
+    message = vstrpprintf(0, msg, args);
+    va_end(args);
+
+    sapnwrfc_throw_rfc_exception(sapnwrfc_connection_exception_ce, error_info, ZSTR_VAL(message));
+    zend_string_release(message);
 }
 
 
@@ -115,68 +109,13 @@ void sapnwrfc_throw_function_exception(RFC_ERROR_INFO error_info, char *msg, ...
 {
     va_list args;
     zend_string *message;
-    zval info;
-    zval ex;
-    zend_error_handling zeh;
 
     va_start(args, msg);
     message = vstrpprintf(0, msg, args);
     va_end(args);
 
-    array_init(&info);
-
-    zend_replace_error_handling(EH_THROW, sapnwrfc_function_exception_ce, &zeh);
-
-    object_init_ex(&ex, sapnwrfc_function_exception_ce);
-
-    zend_update_property_string(sapnwrfc_function_exception_ce, SAPNWRFC_EXC_Z_OBJ_OR_ZVAL(ex), "message", sizeof("message") - 1, ZSTR_VAL(message));
-    zend_update_property_long(sapnwrfc_function_exception_ce, SAPNWRFC_EXC_Z_OBJ_OR_ZVAL(ex), "code", sizeof("code") - 1, error_info.code);
-
-    // populate errorInfo array
-    add_assoc_long(&info, "code", error_info.code);
-    add_assoc_str(&info, "key", sapuc_to_zend_string(error_info.key));
-    add_assoc_str(&info, "message", sapuc_to_zend_string(error_info.message));
-
-    switch(error_info.group) {
-        case LOGON_FAILURE:                   // Error message raised when logon fails
-        case COMMUNICATION_FAILURE:           // Problems with the network connection (or backend broke down and killed the connection)
-        case EXTERNAL_RUNTIME_FAILURE:        // Problems in the RFC runtime of the external program (i.e "this" library)
-            // no additional properties, just the generic one's from above
-            break;
-        case ABAP_APPLICATION_FAILURE:        // ABAP Exception raised in ABAP function modules
-        case ABAP_RUNTIME_FAILURE:            // ABAP Message raised in ABAP function modules or in ABAP runtime of the backend (e.g Kernel)
-        case EXTERNAL_APPLICATION_FAILURE:    // Problems in the external program (e.g in the external server implementation)
-        case EXTERNAL_AUTHORIZATION_FAILURE:  // Problems raised in the authorization check handler provided by the external server implementation
-            add_assoc_str(&info, "abapMsgClass", sapuc_to_zend_string(error_info.abapMsgClass));
-            add_assoc_str(&info, "abapMsgType", sapuc_to_zend_string(error_info.abapMsgType));
-            add_assoc_str(&info, "abapMsgNumber", sapuc_to_zend_string(error_info.abapMsgNumber));
-            add_assoc_str(&info, "abapMsgV1", sapuc_to_zend_string(error_info.abapMsgV1));
-            add_assoc_str(&info, "abapMsgV2", sapuc_to_zend_string(error_info.abapMsgV2));
-            add_assoc_str(&info, "abapMsgV3", sapuc_to_zend_string(error_info.abapMsgV3));
-            add_assoc_str(&info, "abapMsgV4", sapuc_to_zend_string(error_info.abapMsgV4));
-            break;
-        case RFC_OK: // LCOV_EXCL_START
-            zend_error(E_ERROR, "Internal error: exception handler called for RFC_OK");
-            zend_restore_error_handling(&zeh);
-
-            zend_string_release(message);
-            return;
-            // LCOV_EXCL_STOP
-        default:
-            zend_error(E_ERROR, "Internal error: unknown error group");
-            zend_restore_error_handling(&zeh);
-
-            zend_string_release(message);
-            return;
-    }
-
-    zend_update_property(sapnwrfc_function_exception_ce, SAPNWRFC_EXC_Z_OBJ_OR_ZVAL(ex), "errorInfo", sizeof("errorInfo") - 1, &info);
-
-    zval_ptr_dtor(&info);
+    sapnwrfc_throw_rfc_exception(sapnwrfc_function_exception_ce, error_info, ZSTR_VAL(message));
     zend_string_release(message);
-
-    zend_throw_exception_object(&ex);
-    zend_restore_error_handling(&zeh);
 }
 
 PHP_METHOD(Exception, getErrorInfo)
