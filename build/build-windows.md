@@ -2,26 +2,56 @@
 
 ## Prerequisites
 
-### 1. Visual Studio with MSVC v143 toolset
+### 1. Visual Studio 2026 with the required MSVC toolsets
 
-Install **Visual Studio 2022** (or newer) with the **"Desktop development with C++"** workload,
-and make sure the **MSVC v143 – VS 2022 C++ x64/x86 Build Tools** component is included.
-PHP 8.5 Windows binaries are compiled with v143 (vs17); the extension must use the same toolset.
+Install **Visual Studio 2026** with the **"Desktop development with C++"** workload.
+VS 2026 ships with the v144 (vs18) toolset, but the current PHP Windows binaries are compiled
+with older toolsets. Both must be added as individual components:
 
-Download: https://visualstudio.microsoft.com/downloads/
+| PHP version | Zip toolset | Required MSVC component |
+|-------------|-------------|-------------------------|
+| 8.2, 8.3 | vs16 | **MSVC v142 – VS 2019 C++ x64/x86 Build Tools (v14.29–16.11)** |
+| 8.4, 8.5 | vs17 | **MSVC v143 – VS 2022 C++ x64/x86 Build Tools** |
 
-### 2. PHP zips (binary + devel)
+Install both via **VS Installer → Modify → Individual Components** and search for "MSVC v142"
+and "MSVC v143".
 
-Place all four zips in the `build\php\` folder:
+The build script auto-detects which toolset each PHP zip requires and selects the correct compiler
+via `vcvarsall.bat -vcvars_ver`. If a required toolset is not installed it exits with a clear
+error and installation instructions.
+
+Download VS: https://visualstudio.microsoft.com/downloads/
+
+### 2. PHP zips (binary + devel) and PHP SDK
+
+Place the following files in the `build\php\` folder.
+
+**PHP 8.2 and 8.3** (toolset vs16):
 
 | File | Purpose |
 |------|---------|
-| `php-{ver}-Win32-vs17-x64.zip` | TS binary (provides `php.exe`) |
-| `php-{ver}-nts-Win32-vs17-x64.zip` | NTS binary |
-| `php-{ver}-devel-vs17-x64.zip` | TS devel (provides `phpize` + headers) |
-| `php-{ver}-nts-devel-vs17-x64.zip` | NTS devel |
+| `php-{ver}-Win32-vs16-x64.zip` | TS binary |
+| `php-{ver}-nts-Win32-vs16-x64.zip` | NTS binary |
+| `php-devel-pack-{ver}-Win32-vs16-x64.zip` | TS devel (provides `phpize` + headers) |
+| `php-devel-pack-{ver}-nts-Win32-vs16-x64.zip` | NTS devel |
 
-Download from https://windows.php.net/download/ — choose the **zip** packages (not the installer).
+**PHP 8.4 and 8.5** (toolset vs17):
+
+| File | Purpose |
+|------|---------|
+| `php-{ver}-Win32-vs17-x64.zip` | TS binary |
+| `php-{ver}-nts-Win32-vs17-x64.zip` | NTS binary |
+| `php-devel-pack-{ver}-Win32-vs17-x64.zip` | TS devel |
+| `php-devel-pack-{ver}-nts-Win32-vs17-x64.zip` | NTS devel |
+
+**PHP SDK binary tools** (one file, any PHP version):
+
+| File | Purpose |
+|------|---------|
+| `php-sdk-binary-tools-*.zip` | Build environment setup scripts |
+
+Download PHP zips from https://windows.php.net/download/ — choose the **zip** packages (not the
+installer). Download the PHP SDK zip from https://github.com/php/php-sdk-binary-tools/releases.
 
 ### 3. SAP NW RFC SDK
 
@@ -36,15 +66,6 @@ nwrfcsdk\
   lib\        ← sapnwrfc.lib, libsapucum.lib, *.dll
 ```
 
-### 4. Git
-
-Required to clone the PHP SDK binary tools. https://git-scm.com/
-
-### 5. Internet access (first run only)
-
-The script clones the PHP SDK binary tools from GitHub (`php/php-sdk-binary-tools`).
-All PHP packages are taken from the local `build\php\` folder — no other downloads.
-
 ---
 
 ## Running the build
@@ -57,28 +78,27 @@ cd path\to\php-sapnwrfc\build
 ```
 
 The script automatically finds every PHP zip in `.\php\` and builds the extension for each variant.
-Output lands in `build\workspace\` (created automatically next to the script).
 
 ### Optional parameters
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `-WorkspaceDir` | Where extractions and the PHP SDK clone land | `.\workspace` |
-| `-Toolset` | Override the MSVC toolset (e.g. `vs17`, `vs18`) | auto-detected from zip name |
-| `-SkipPhpSdk` | Skip git pull of PHP SDK tools | — |
+| `-WorkspaceDir` | Where extracted PHP binaries, devel packs, PHP SDK, and SAP SDK land | `.\workspace` |
+| `-OutputDir` | Where built DLLs are collected | `.\output` |
+| `-Toolset` | Override the MSVC toolset for all variants (e.g. `vs17`, `vs18`) | auto-detected from zip name |
 | `-RunTests` | Run `nmake test` after each build | — |
 
 Examples:
 
 ```powershell
-# Force toolset (e.g. when installed VS differs from zip name)
+# Build all variants (normal case)
+.\build-windows.ps1
+
+# Custom workspace and output directories, run tests after each build
+.\build-windows.ps1 -WorkspaceDir "D:\build" -OutputDir "D:\dist" -RunTests
+
+# Force a specific compiler toolset
 .\build-windows.ps1 -Toolset vs17
-
-# Custom workspace, run tests
-.\build-windows.ps1 -WorkspaceDir "D:\build" -RunTests
-
-# Skip PHP SDK re-clone on subsequent runs
-.\build-windows.ps1 -SkipPhpSdk
 ```
 
 ### Script execution policy
@@ -93,30 +113,39 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 
 ## What the script does
 
-1. Scans `.\php\*.zip` to discover PHP variants (TS / NTS, version, toolset, arch).
-2. Detects the installed Visual Studio via `vswhere` and warns if it differs from the zip toolset.
-3. Extracts the SAP NW RFC SDK from `.\sap\*.zip` into `workspace\nwrfcsdk`.
-4. Clones (or updates) the PHP SDK binary tools into `workspace\php-sdk`.
-5. For **each** PHP variant:
-   a. Extracts the PHP binary zip to `workspace\php-{ver}-{ts|nts}`.
-   b. Extracts the matching devel zip from `.\php\` to `workspace\php-{ver}-{nts-}devel-…`.
-   c. Runs the build inside the MSVC environment set up by `phpsdk-vs17-x64.bat`:
+1. Reads the extension version from `php_sapnwrfc.h`.
+2. Scans `.\php\*.zip` to discover PHP variants (TS / NTS, version, toolset, arch).
+3. Detects the installed Visual Studio via `vswhere`.
+4. Extracts the SAP NW RFC SDK from `.\sap\*.zip` into `workspace\nwrfcsdk` and reads its version from `sapnwrfc.dll`.
+5. Extracts the PHP SDK binary tools from `.\php\php-sdk-binary-tools-*.zip` into `workspace\php-sdk`.
+6. For **each** PHP variant:
+   a. Extracts the PHP binary zip to `workspace\php-{ver}-{ts|nts}-{arch}`.
+   b. Extracts the matching devel zip to `workspace\php-devel-pack-{ver}[-nts]-Win32-{toolset}-{arch}`.
+   c. Sets up the correct MSVC environment (via `phpsdk-{toolset}-{arch}.bat` for same-toolset builds, or `vcvarsall.bat -vcvars_ver` for cross-toolset builds) and runs:
       ```
       phpize
       configure --with-prefix=<phpDir> --with-sapnwrfc=<nwrfcsdkDir>
       nmake
       ```
-   d. Reports the path to the built DLL.
-6. Prints a summary of all built DLLs.
+   d. Copies the built DLL to `.\output\` with a versioned filename.
+7. Prints a summary of all built DLLs.
 
 ---
 
-## Output DLL locations
+## Output
 
-| Variant | Path relative to repo root |
-|---------|---------------------------|
-| TS | `x64\Release_TS\php_sapnwrfc.dll` |
-| NTS | `x64\Release\php_sapnwrfc.dll` |
+All DLLs land directly in `build\output\` with a filename that encodes every relevant version:
+
+```
+php_sapnwrfc-{ext_ver}+php.{php_ver}-{ts|nts}-{toolset}-{arch}.sdk.{sdk_ver}.dll
+```
+
+Example:
+
+```
+php_sapnwrfc-2.1.0+php.8.3.31-ts-vs16-x64.sdk.7500.0.13.dll
+php_sapnwrfc-2.1.0+php.8.3.31-nts-vs16-x64.sdk.7500.0.13.dll
+```
 
 ---
 
@@ -141,11 +170,12 @@ php -m | findstr sapnwrfc
 
 | Symptom | Cause / Fix |
 |---------|-------------|
-| No PHP zips found | Place binary zip(s) in `build\php\` with the expected naming pattern |
+| No PHP zips found | Place binary zips in `build\php\` with the expected naming pattern |
 | No SAP SDK zip found | Place the SAP zip in `build\sap\` |
-| Devel package not found | Place the matching `php-{ver}-{nts-}devel-vs17-x64.zip` in `build\php\` |
+| Devel package not found | Place the matching `php-devel-pack-{ver}[-nts]-Win32-{toolset}-x64.zip` in `build\php\` |
+| PHP SDK zip not found | Place `php-sdk-binary-tools-*.zip` in `build\php\` |
 | `phpize` not found | Devel package not on PATH — check that extraction succeeded in `workspace\` |
 | `configure` fails: SDK not found | Verify extracted SDK has `include\` and `lib\` under `workspace\nwrfcsdk` |
-| `phpsdk-vs17-x64.bat` not found | PHP SDK not yet cloned — run without `-SkipPhpSdk`; or toolset mismatch — use `-Toolset` |
-| VS toolset warning at startup | Installed VS differs from zip toolset — use `-Toolset vs17` to match the PHP 8.5 build |
-| Tests fail: module not loaded | Ensure `workspace\nwrfcsdk\lib` is on `PATH` (`-RunTests` does this automatically) |
+| `phpsdk-vs1X-x64.bat` not found | Toolset mismatch — use `-Toolset` to select an available toolset |
+| MSVC toolset not found | Install the required v142/v143 component via VS Installer (see Prerequisites) |
+| Tests fail: module not loaded | Ensure `workspace\nwrfcsdk\lib` is on `PATH` (`-RunTests` adds it automatically) |

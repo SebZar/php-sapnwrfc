@@ -56,7 +56,7 @@
 .PARAMETER OutputDir
     Directory where built DLLs are collected after each successful build.
     Default: ".\output" (subfolder next to this script).
-    Each variant gets its own subfolder: php-{ver}-{ts|nts}-{arch}\.
+    All DLLs land directly in this directory — no per-variant subfolders.
 
 .PARAMETER Toolset
     Override the MSVC toolset for all variants (e.g. "vs17", "vs18").
@@ -92,7 +92,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 function Step([string]$msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
-function Fail([string]$msg) { Write-Error $msg; exit 1 }
+function Fail([string]$msg) { Write-Error $msg -ErrorAction Continue; exit 1 }
 
 # Returns [PSCustomObject]@{Toolset="vsXX"; InstallPath="..."} or $null
 function Get-VsToolset {
@@ -109,6 +109,18 @@ $ExtSourceDir = (Resolve-Path "$PSScriptRoot\..").Path
 if (-not $WorkspaceDir) { $WorkspaceDir = Join-Path $PSScriptRoot "workspace" }
 if (-not $OutputDir)    { $OutputDir    = Join-Path $PSScriptRoot "output" }
 $PhpSdkDir    = Join-Path $WorkspaceDir "php-sdk"
+
+# Read extension version from php_sapnwrfc.h
+$extVersion = $null
+$versionHeader = Join-Path $ExtSourceDir "php_sapnwrfc.h"
+if (Test-Path $versionHeader) {
+    $headerContent = Get-Content $versionHeader -Raw
+    if ($headerContent -match '#define\s+PHP_SAPNWRFC_VERSION\s+"([^"]+)"') {
+        $extVersion = $Matches[1]
+    }
+}
+if (-not $extVersion) { Fail "Could not read PHP_SAPNWRFC_VERSION from $versionHeader" }
+Write-Host "Extension version: $extVersion"
 
 # ---------------------------------------------------------------------------
 # Discover PHP variants from .\php\*.zip
@@ -210,6 +222,13 @@ if (-not (Test-Path (Join-Path $NwRfcSdkDir "include"))) {
 
 Write-Host "  SAP NW RFC SDK: $NwRfcSdkDir"
 
+# Read SDK version from sapnwrfc.dll file metadata
+$sdkDll = Join-Path $NwRfcSdkDir "lib\sapnwrfc.dll"
+if (-not (Test-Path $sdkDll)) { Fail "sapnwrfc.dll not found under $NwRfcSdkDir\lib — check SDK zip structure" }
+$vi = (Get-Item $sdkDll).VersionInfo
+$sdkVersion = "$($vi.FileMajorPart).$($vi.FileMinorPart).$($vi.FileBuildPart)"
+Write-Host "  SAP NW RFC SDK version: $sdkVersion"
+
 # ---------------------------------------------------------------------------
 # PHP SDK binary tools — extract from .\php\php-sdk-binary-tools-*.zip
 # ---------------------------------------------------------------------------
@@ -249,8 +268,11 @@ function Invoke-BuildBat([string]$content, [string]$PhpSdkBat, [string]$VsEnvLin
     $outerBat = Join-Path $env:TEMP "sapnwrfc_outer_$([System.IO.Path]::GetRandomFileName().Replace('.',''))_.bat"
     $exitFile = Join-Path $env:TEMP "sapnwrfc_exit_$([System.IO.Path]::GetRandomFileName().Replace('.',''))_.txt"
 
-    # Inner bat: the actual build steps + exit-code capture
-    Set-Content -Path $innerBat -Value ($content + "`necho %ERRORLEVEL% > `"$exitFile`"") -Encoding ASCII
+    # Inner bat: wrap content in a :build subroutine so that "|| exit /b 1" guards
+    # inside the content exit the subroutine but not the outer bat, ensuring the
+    # echo line always runs and the exit file is always written.
+    $innerBatContent = "@echo off`r`ncall :build`r`necho %ERRORLEVEL% > `"$exitFile`"`r`nexit /b 0`r`n`r`n:build`r`n" + $content
+    Set-Content -Path $innerBat -Value $innerBatContent -Encoding ASCII
 
     # Outer bat: sets up VS env then runs the inner bat.
     # $VsEnvLines: when set, VS env is established via vcvarsall directly (cross-toolset builds).
@@ -263,10 +285,10 @@ function Invoke-BuildBat([string]$content, [string]$PhpSdkBat, [string]$VsEnvLin
 
     try {
         & cmd.exe /c "`"$outerBat`"" | Out-Host
-        if (Test-Path $exitFile) {
-            return [int](Get-Content $exitFile).Trim()
+        if (-not (Test-Path $exitFile)) {
+            Fail "Build batch did not complete — VS environment setup likely failed (vcvarsall or phpsdk_setvars). Check output above for details."
         }
-        return $LASTEXITCODE
+        return [int](Get-Content $exitFile).Trim()
     } finally {
         Remove-Item $innerBat -Force -ErrorAction SilentlyContinue
         Remove-Item $outerBat -Force -ErrorAction SilentlyContinue
@@ -319,7 +341,7 @@ foreach ($v in $variants) {
 
     if (-not (Test-Path $develDir)) {
         Write-Host "  Extracting $develPkg.zip ..."
-        $develTemp = Join-Path $WorkspaceDir "_devel_tmp"
+        $develTemp = Join-Path $WorkspaceDir "_devel_tmp_$($v.Version)_$($v.Label)"
         Expand-Archive -Path $localDevelZip -DestinationPath $develTemp
         $topDir = Get-ChildItem -Path $develTemp -Directory | Select-Object -First 1
         if ($topDir -and -not (Get-ChildItem -Path $develTemp -File)) {
@@ -389,9 +411,9 @@ nmake || exit /b 1
     # TS builds output to Release_TS, NTS to Release
     $releaseDir  = if ($v.IsNts) { "$($v.Arch)\Release" } else { "$($v.Arch)\Release_TS" }
     $builtDll    = Join-Path $ExtSourceDir "$releaseDir\php_sapnwrfc.dll"
-    $variantSlug = "php-$($v.Version)-$($v.Label.ToLower())-$($v.Arch)"
-    $destDir     = Join-Path $OutputDir $variantSlug
-    $destDll     = Join-Path $destDir "php_sapnwrfc.dll"
+    $dllName     = "php_sapnwrfc-$extVersion+php.$($v.Version)-$($v.Label.ToLower())-$($v.Toolset)-$($v.Arch).sdk.$sdkVersion.dll"
+    $destDir     = $OutputDir
+    $destDll     = Join-Path $destDir $dllName
 
     if (Test-Path $builtDll) {
         New-Item -ItemType Directory -Force $destDir | Out-Null
@@ -400,7 +422,7 @@ nmake || exit /b 1
         $results.Add([PSCustomObject]@{ Variant = $v; Success = $true; Dll = $destDll })
     } else {
         Write-Warning "DLL not found at expected path: $builtDll"
-        $results.Add([PSCustomObject]@{ Variant = $v; Success = $true; Dll = $null })
+        $results.Add([PSCustomObject]@{ Variant = $v; Success = $false; Dll = $null })
     }
 
     # --- Optional tests ---
@@ -413,7 +435,7 @@ set "PATH=%PATH%;$develDir;$NwRfcSdkDir\lib"
 cd /d "$ExtSourceDir"
 nmake test || exit /b 1
 "@
-        $testExit = Invoke-BuildBat $testBat $phpsdk_bat
+        $testExit = Invoke-BuildBat $testBat $phpsdk_bat $vsEnvLines
         if ($testExit -ne 0) {
             Write-Warning "Tests reported failures for $($v.Label) (exit $testExit)"
         } else {
@@ -430,9 +452,6 @@ foreach ($r in $results) {
     $tag = "[$($r.Variant.Label)]"
     if ($r.Success -and $r.Dll) {
         Write-Host "  $tag OK  ->  $($r.Dll)" -ForegroundColor Green
-    } elseif ($r.Success) {
-        $releaseSubDir = if ($r.Variant.IsNts) { 'Release' } else { 'Release_TS' }
-        Write-Host "  $tag Build succeeded but DLL location unknown - check $($r.Variant.Arch)\$releaseSubDir" -ForegroundColor Yellow
     } else {
         Write-Host "  $tag FAILED" -ForegroundColor Red
     }
@@ -442,7 +461,7 @@ $anyOk = $results | Where-Object { $_.Success -and $_.Dll }
 if ($anyOk) {
     Write-Host ""
     Write-Host "  Next steps:" -ForegroundColor Cyan
-    Write-Host "    1. Copy the DLL(s) from $OutputDir\<variant>\ to your PHP ext\ directory"
+    Write-Host "    1. Copy the DLL(s) from $OutputDir\ to your PHP ext\ directory"
     Write-Host "    2. Add  extension=sapnwrfc  to php.ini"
     Write-Host "    3. Ensure $NwRfcSdkDir\lib is on PATH so PHP can load the SAP DLLs"
 }
