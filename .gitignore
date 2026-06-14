@@ -8,7 +8,10 @@ Makefile.objects
 acinclude.m4
 aclocal.m4
 autom4te.cache/
-build/
+build/output/
+build/php/
+build/sap/
+build/workspace/
 config.guess
 config.h
 config.h.in
@@ -43,3 +46,11 @@ todo.txt
 .gdbinit
 .vscode
 *.o
+
+# Windows build output (nmake)
+x64/
+x86/
+configure.bat
+config.nice.bat
+configure.js
+*.log
