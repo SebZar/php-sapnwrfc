@@ -559,87 +559,56 @@ rfc_set_value_return_t rfc_set_table_row(RFC_STRUCTURE_HANDLE row, zval *value, 
     return RFC_SET_VALUE_OK;
 }
 
-rfc_set_value_return_t rfc_set_field_value(DATA_CONTAINER_HANDLE h, RFC_FIELD_DESC field_desc, zval *value)
+static rfc_set_value_return_t rfc_dispatch_set_value(DATA_CONTAINER_HANDLE h, RFCTYPE type, SAP_UC *name, unsigned nuc_length, zval *value)
 {
     RFC_RC rc = RFC_OK;
     RFC_ERROR_INFO error_info;
     RFC_TABLE_HANDLE table_handle;
     zend_string *zname;
     zend_string *type_name;
-    int ret = RFC_SET_VALUE_OK;
 
-    switch(field_desc.type) {
-        case RFCTYPE_CHAR:
-            ret = rfc_set_char_value(h, field_desc.name, value);
-            break;
-        case RFCTYPE_DATE:
-            ret = rfc_set_date_value(h, field_desc.name, value);
-            break;
-        case RFCTYPE_TIME:
-            ret = rfc_set_time_value(h, field_desc.name, value);
-            break;
-        case RFCTYPE_BYTE:
-            ret = rfc_set_byte_value(h, field_desc.name, value, field_desc.nucLength);
-            break;
+    switch (type) {
+        case RFCTYPE_CHAR:      return rfc_set_char_value(h, name, value);
+        case RFCTYPE_DATE:      return rfc_set_date_value(h, name, value);
+        case RFCTYPE_TIME:      return rfc_set_time_value(h, name, value);
+        case RFCTYPE_BYTE:      return rfc_set_byte_value(h, name, value, nuc_length);
         case RFCTYPE_TABLE:
-            rc = RfcGetTable(h, field_desc.name, &table_handle, &error_info);
+            rc = RfcGetTable(h, name, &table_handle, &error_info);
             if (rc != RFC_OK) {
-                zname = sapuc_to_zend_string(field_desc.name);
+                zname = sapuc_to_zend_string(name);
                 sapnwrfc_throw_function_exception(error_info, "Failed to get TABLE handle for parameter \"%s\"", ZSTR_VAL(zname));
                 zend_string_release(zname);
                 return RFC_SET_VALUE_ERROR;
             }
-
-            ret = rfc_set_table_value(table_handle, field_desc.name, value);
-            break;
-        case RFCTYPE_NUM:
-            ret = rfc_set_num_value(h, field_desc.name, value, field_desc.nucLength);
-            break;
-        case RFCTYPE_FLOAT:
-            ret = rfc_set_float_value(h, field_desc.name, value);
-            break;
+            return rfc_set_table_value(table_handle, name, value);
+        case RFCTYPE_NUM:       return rfc_set_num_value(h, name, value, nuc_length);
+        case RFCTYPE_FLOAT:     return rfc_set_float_value(h, name, value);
         case RFCTYPE_BCD:
         case RFCTYPE_DECF16:
-        case RFCTYPE_DECF34:
-            ret = rfc_set_bcd_decfloat_value(h, field_desc.name, value);
-            break;
-        case RFCTYPE_INT:
-            ret = rfc_set_int_value(h, field_desc.name, value);
-            break;
-        case RFCTYPE_INT1:
-            ret = rfc_set_int1_value(h, field_desc.name, value);
-            break;
-        case RFCTYPE_INT2:
-            ret = rfc_set_int2_value(h, field_desc.name, value);
-            break;
+        case RFCTYPE_DECF34:    return rfc_set_bcd_decfloat_value(h, name, value);
+        case RFCTYPE_INT:       return rfc_set_int_value(h, name, value);
+        case RFCTYPE_INT1:      return rfc_set_int1_value(h, name, value);
+        case RFCTYPE_INT2:      return rfc_set_int2_value(h, name, value);
 #if ZEND_ENABLE_ZVAL_LONG64
-        case RFCTYPE_INT8:
-            ret = rfc_set_int8_value(h, field_desc.name, value);
-            break;
+        case RFCTYPE_INT8:      return rfc_set_int8_value(h, name, value);
 #endif
-        case RFCTYPE_STRUCTURE:
-            ret = rfc_set_structure_value(h, field_desc.name, value);
-            break;
-        case RFCTYPE_STRING:
-            ret = rfc_set_string_value(h, field_desc.name, value);
-            break;
-        case RFCTYPE_XSTRING:
-            ret = rfc_set_xstring_value(h, field_desc.name, value);
-            break;
+        case RFCTYPE_STRUCTURE: return rfc_set_structure_value(h, name, value);
+        case RFCTYPE_STRING:    return rfc_set_string_value(h, name, value);
+        case RFCTYPE_XSTRING:   return rfc_set_xstring_value(h, name, value);
         default:
-            zname = sapuc_to_zend_string(field_desc.name);
-            type_name = sapuc_to_zend_string((SAP_UC *)RfcGetTypeAsString(field_desc.type));
-
+            zname = sapuc_to_zend_string(name);
+            type_name = sapuc_to_zend_string((SAP_UC *)RfcGetTypeAsString(type));
             sapnwrfc_throw_function_exception_ex("Unknown type \"%s\" for parameter \"%s\"",
                 ZSTR_VAL(type_name), ZSTR_VAL(zname));
-
             zend_string_release(zname);
             zend_string_release(type_name);
-
-            ret = RFC_SET_VALUE_ERROR;
+            return RFC_SET_VALUE_ERROR;
     }
+}
 
-    return ret;
+rfc_set_value_return_t rfc_set_field_value(DATA_CONTAINER_HANDLE h, RFC_FIELD_DESC field_desc, zval *value)
+{
+    return rfc_dispatch_set_value(h, field_desc.type, field_desc.name, field_desc.nucLength, value);
 }
 
 rfc_set_value_return_t rfc_set_parameter_value(RFC_FUNCTION_HANDLE function_handle,
@@ -650,92 +619,18 @@ rfc_set_value_return_t rfc_set_parameter_value(RFC_FUNCTION_HANDLE function_hand
     RFC_RC rc = RFC_OK;
     RFC_ERROR_INFO error_info;
     RFC_PARAMETER_DESC parameter_desc;
-    RFC_TABLE_HANDLE table_handle;
     SAP_UC *parameter_name_u;
-    zend_string *type_name;
-    int ret = RFC_SET_VALUE_OK;
+    rfc_set_value_return_t ret;
 
-    rc = RfcGetParameterDescByName(function_desc_handle,
-                                   (parameter_name_u = zend_string_to_sapuc(name)),
-                                   &parameter_desc,
-                                   &error_info);
-
+    parameter_name_u = zend_string_to_sapuc(name);
+    rc = RfcGetParameterDescByName(function_desc_handle, parameter_name_u, &parameter_desc, &error_info);
     if (rc != RFC_OK) {
         free((char *)parameter_name_u);
-
         sapnwrfc_throw_function_exception(error_info, "Failed to get description for parameter \"%s\"", ZSTR_VAL(name));
         return RFC_SET_VALUE_ERROR;
     }
 
-    switch(parameter_desc.type) {
-        case RFCTYPE_CHAR:
-            ret = rfc_set_char_value(function_handle, parameter_name_u, value);
-            break;
-        case RFCTYPE_DATE:
-            ret = rfc_set_date_value(function_handle, parameter_name_u, value);
-            break;
-        case RFCTYPE_TIME:
-            ret = rfc_set_time_value(function_handle, parameter_name_u, value);
-            break;
-        case RFCTYPE_BYTE:
-            ret = rfc_set_byte_value(function_handle, parameter_name_u, value, parameter_desc.nucLength);
-            break;
-        case RFCTYPE_TABLE:
-            rc = RfcGetTable(function_handle, parameter_name_u, &table_handle, &error_info);
-            if (rc != RFC_OK) {
-                free((char *)parameter_name_u);
-
-                sapnwrfc_throw_function_exception(error_info, "Failed to get TABLE handle for parameter \"%s\"", ZSTR_VAL(name));
-                return RFC_SET_VALUE_ERROR;
-            }
-
-            ret = rfc_set_table_value(table_handle, parameter_name_u, value);
-            break;
-        case RFCTYPE_NUM:
-            ret = rfc_set_num_value(function_handle, parameter_name_u, value, parameter_desc.nucLength);
-            break;
-        case RFCTYPE_FLOAT:
-            ret = rfc_set_float_value(function_handle, parameter_name_u, value);
-            break;
-        case RFCTYPE_BCD:
-        case RFCTYPE_DECF16:
-        case RFCTYPE_DECF34:
-            ret = rfc_set_bcd_decfloat_value(function_handle, parameter_name_u, value);
-            break;
-        case RFCTYPE_INT:
-            ret = rfc_set_int_value(function_handle, parameter_name_u, value);
-            break;
-        case RFCTYPE_INT1:
-            ret = rfc_set_int1_value(function_handle, parameter_name_u, value);
-            break;
-        case RFCTYPE_INT2:
-            ret = rfc_set_int2_value(function_handle, parameter_name_u, value);
-            break;
-#if ZEND_ENABLE_ZVAL_LONG64
-        case RFCTYPE_INT8:
-            ret = rfc_set_int8_value(function_handle, parameter_name_u, value);
-            break;
-#endif
-        case RFCTYPE_STRUCTURE:
-            ret = rfc_set_structure_value(function_handle, parameter_name_u, value);
-            break;
-        case RFCTYPE_STRING:
-            ret = rfc_set_string_value(function_handle, parameter_name_u, value);
-            break;
-        case RFCTYPE_XSTRING:
-            ret = rfc_set_xstring_value(function_handle, parameter_name_u, value);
-            break;
-        default:
-            type_name = sapuc_to_zend_string((SAP_UC *)RfcGetTypeAsString(parameter_desc.type));
-
-            sapnwrfc_throw_function_exception_ex("Unknown type \"%s\" for parameter \"%s\"",
-                ZSTR_VAL(type_name), ZSTR_VAL(name));
-
-            zend_string_release(type_name);
-
-            ret = RFC_SET_VALUE_ERROR;
-    }
-
+    ret = rfc_dispatch_set_value(function_handle, parameter_desc.type, parameter_name_u, parameter_desc.nucLength, value);
     free((char *)parameter_name_u);
     return ret;
 }
