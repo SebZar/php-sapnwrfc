@@ -39,14 +39,14 @@ class Exception extends \RuntimeException
      *    "abapMsgClass", "abapMsgType", "abapMsgNumber", "abapMsgV1",
      *    "abapMsgV2", "abapMsgV3", "abapMsgV4"
      *
-     * @var array
+     * @var array|null
      */
     protected $errorInfo;
 
     /**
      * Getter for the errorInfo property.
      *
-     * @returns array|null
+     * @return array|null
      */
     public function getErrorInfo(): ?array {}
 }
