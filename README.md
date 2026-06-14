@@ -11,8 +11,6 @@ If you find this project useful consider giving me a cup of coffee using the "Do
 
 The extension is tested with PHP 8.1+ using SAP NW RFC SDK version 7.50.
 
-The repository is called `php7-sapnwrfc` for historical reasons only.
-
 ## Usage
 
 You can find detailed instructions on how to build and use this extension at https://gkralik.github.io/php7-sapnwrfc.
