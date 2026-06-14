@@ -230,13 +230,10 @@ static void sapnwrfc_connection_object_free(zend_object *object)
 
     intern = SAPNWRFC_CONNECTION_OBJ(object);
 
-    /* free the RFC handle */
-    if(intern->rfc_handle) {
+    if (intern->rfc_handle) {
         RfcCloseConnection(intern->rfc_handle, &error_info);
         intern->rfc_handle = NULL;
     }
-
-    intern->rfc_handle = NULL;
 
     // free login parameters
     if(intern->rfc_login_params) {
@@ -381,7 +378,7 @@ PHP_METHOD(Connection, __construct)
     zend_error_handling zeh;
     HashTable *connection_params;
     HashTable *options = NULL;
-    long len;
+    zend_long len;
 
     // get the connection parameters
     zend_replace_error_handling(EH_THROW, NULL, &zeh);
@@ -1317,11 +1314,7 @@ PHP_FUNCTION(clearFunctionDescCache)
     }
     zend_restore_error_handling(&zeh);
 
-    if (rfc_clear_function_desc_cache(function_name, repository_id)) {
-        RETVAL_BOOL(1);
-    } else {
-        RETVAL_BOOL(0);
-    }
+    RETVAL_BOOL(rfc_clear_function_desc_cache(function_name, repository_id));
 }
 
 /* {{{ PHP_MINIT_FUNCTION
