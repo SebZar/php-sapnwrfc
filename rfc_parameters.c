@@ -22,10 +22,7 @@ rfc_set_value_return_t rfc_set_char_value(DATA_CONTAINER_HANDLE h, SAP_UC *name,
     zend_string *zname;
     SAP_UC *value_u;
 
-    // if the value is a reference, get the reference value first
-    if (Z_ISREF_P(value)) {
-        value = Z_REFVAL_P(value);
-    }
+    ZVAL_DEREF(value);
 
     if (Z_TYPE_P(value) != IS_STRING) {
         zname = sapuc_to_zend_string(name);
@@ -56,10 +53,7 @@ rfc_set_value_return_t rfc_set_date_value(DATA_CONTAINER_HANDLE h, SAP_UC *name,
     SAP_UC *value_u;
     RFC_DATE value_date;
 
-    // if the value is a reference, get the reference value first
-    if (Z_ISREF_P(value)) {
-        value = Z_REFVAL_P(value);
-    }
+    ZVAL_DEREF(value);
 
     if (Z_TYPE_P(value) != IS_STRING) {
         zname = sapuc_to_zend_string(name);
@@ -98,10 +92,7 @@ rfc_set_value_return_t rfc_set_time_value(DATA_CONTAINER_HANDLE h, SAP_UC *name,
     SAP_UC *value_u;
     RFC_TIME value_time;
 
-    // if the value is a reference, get the reference value first
-    if (Z_ISREF_P(value)) {
-        value = Z_REFVAL_P(value);
-    }
+    ZVAL_DEREF(value);
 
     if (Z_TYPE_P(value) != IS_STRING) {
         zname = sapuc_to_zend_string(name);
@@ -138,10 +129,7 @@ rfc_set_value_return_t rfc_set_byte_value(DATA_CONTAINER_HANDLE h, SAP_UC *name,
     RFC_ERROR_INFO error_info;
     zend_string *zname;
 
-    // if the value is a reference, get the reference value first
-    if (Z_ISREF_P(value)) {
-        value = Z_REFVAL_P(value);
-    }
+    ZVAL_DEREF(value);
 
     if (Z_TYPE_P(value) != IS_STRING) {
         zname = sapuc_to_zend_string(name);
@@ -178,10 +166,7 @@ rfc_set_value_return_t rfc_set_table_value(DATA_CONTAINER_HANDLE h, SAP_UC *name
 
     zname = sapuc_to_zend_string(name);
 
-    // if the value is a reference, get the reference value first
-    if (Z_ISREF_P(value)) {
-        value = Z_REFVAL_P(value);
-    }
+    ZVAL_DEREF(value);
 
     if (Z_TYPE_P(value) != IS_ARRAY) {
         zend_type_error("Failed to set TABLE parameter \"%s\". Expected array, %s given", ZSTR_VAL(zname), zend_zval_type_name(value));
@@ -216,10 +201,7 @@ rfc_set_value_return_t rfc_set_num_value(DATA_CONTAINER_HANDLE h, SAP_UC *name, 
     zend_string *zname;
     SAP_UC *value_u;
 
-    // if the value is a reference, get the reference value first
-    if (Z_ISREF_P(value)) {
-        value = Z_REFVAL_P(value);
-    }
+    ZVAL_DEREF(value);
 
     if (Z_TYPE_P(value) != IS_STRING) {
         zname = sapuc_to_zend_string(name);
@@ -256,10 +238,7 @@ rfc_set_value_return_t rfc_set_float_value(DATA_CONTAINER_HANDLE h, SAP_UC *name
     RFC_ERROR_INFO error_info;
     zend_string *zname;
 
-    // if the value is a reference, get the reference value first
-    if (Z_ISREF_P(value)) {
-        value = Z_REFVAL_P(value);
-    }
+    ZVAL_DEREF(value);
 
     RFC_FLOAT float_value;
 
@@ -293,10 +272,7 @@ rfc_set_value_return_t rfc_set_bcd_decfloat_value(DATA_CONTAINER_HANDLE h, SAP_U
     zend_string *zname;
     SAP_UC *value_u;
 
-    // if the value is a reference, get the reference value first
-    if (Z_ISREF_P(value)) {
-        value = Z_REFVAL_P(value);
-    }
+    ZVAL_DEREF(value);
 
     if (Z_TYPE_P(value) == IS_STRING) {
         value_u = zval_to_sapuc(value);
@@ -335,10 +311,7 @@ rfc_set_value_return_t rfc_set_int_value(DATA_CONTAINER_HANDLE h, SAP_UC *name, 
     RFC_ERROR_INFO error_info;
     zend_string *zname;
 
-    // if the value is a reference, get the reference value first
-    if (Z_ISREF_P(value)) {
-        value = Z_REFVAL_P(value);
-    }
+    ZVAL_DEREF(value);
 
     if (Z_TYPE_P(value) != IS_LONG) {
         zname = sapuc_to_zend_string(name);
@@ -365,10 +338,7 @@ rfc_set_value_return_t rfc_set_int1_value(DATA_CONTAINER_HANDLE h, SAP_UC *name,
     RFC_ERROR_INFO error_info;
     zend_string *zname;
 
-    // if the value is a reference, get the reference value first
-    if (Z_ISREF_P(value)) {
-        value = Z_REFVAL_P(value);
-    }
+    ZVAL_DEREF(value);
 
     if (Z_TYPE_P(value) != IS_LONG) {
         zname = sapuc_to_zend_string(name);
@@ -402,10 +372,7 @@ rfc_set_value_return_t rfc_set_int2_value(DATA_CONTAINER_HANDLE h, SAP_UC *name,
     RFC_ERROR_INFO error_info;
     zend_string *zname;
 
-    // if the value is a reference, get the reference value first
-    if (Z_ISREF_P(value)) {
-        value = Z_REFVAL_P(value);
-    }
+    ZVAL_DEREF(value);
 
     if (Z_TYPE_P(value) != IS_LONG) {
         zname = sapuc_to_zend_string(name);
@@ -440,10 +407,7 @@ rfc_set_value_return_t rfc_set_int8_value(DATA_CONTAINER_HANDLE h, SAP_UC *name,
     RFC_ERROR_INFO error_info;
     zend_string *zname;
 
-    // if the value is a reference, get the reference value first
-    if (Z_ISREF_P(value)) {
-        value = Z_REFVAL_P(value);
-    }
+    ZVAL_DEREF(value);
 
     if (Z_TYPE_P(value) != IS_LONG) {
         zname = sapuc_to_zend_string(name);
@@ -473,10 +437,7 @@ rfc_set_value_return_t rfc_set_structure_value(DATA_CONTAINER_HANDLE h, SAP_UC *
     zend_string *zname;
     rfc_set_value_return_t ret;
 
-    // if the value is a reference, get the reference value first
-    if (Z_ISREF_P(value)) {
-        value = Z_REFVAL_P(value);
-    }
+    ZVAL_DEREF(value);
 
     zname = sapuc_to_zend_string(name);
 
@@ -499,10 +460,7 @@ rfc_set_value_return_t rfc_set_string_value(DATA_CONTAINER_HANDLE h, SAP_UC *nam
     SAP_UC *value_u;
     zend_string *zname;
 
-    // if the value is a reference, get the reference value first
-    if (Z_ISREF_P(value)) {
-        value = Z_REFVAL_P(value);
-    }
+    ZVAL_DEREF(value);
 
     if (Z_TYPE_P(value) != IS_STRING) {
         zname = sapuc_to_zend_string(name);
@@ -531,10 +489,7 @@ rfc_set_value_return_t rfc_set_xstring_value(DATA_CONTAINER_HANDLE h, SAP_UC *na
     RFC_ERROR_INFO error_info;
     zend_string *zname;
 
-    // if the value is a reference, get the reference value first
-    if (Z_ISREF_P(value)) {
-        value = Z_REFVAL_P(value);
-    }
+    ZVAL_DEREF(value);
 
     if (Z_TYPE_P(value) != IS_STRING) {
         zname = sapuc_to_zend_string(name);
@@ -566,10 +521,7 @@ rfc_set_value_return_t rfc_set_table_row(RFC_STRUCTURE_HANDLE row, zval *value, 
     zend_string *key;
     zval *val;
 
-    // if the value is a reference, get the reference value first
-    if (Z_ISREF_P(value)) {
-        value = Z_REFVAL_P(value);
-    }
+    ZVAL_DEREF(value);
 
     if (Z_TYPE_P(value) != IS_ARRAY) {
         zend_type_error("Failed to set TABLE row parameter \"%s\". Expected array, %s given", ZSTR_VAL(param_name), zend_zval_type_name(value));
