@@ -310,7 +310,7 @@ static void sapnwrfc_connection_set_options(sapnwrfc_connection_object *intern, 
 
     ZEND_HASH_FOREACH_STR_KEY_VAL(options, key, val) {
         if (key) {
-            if (strncasecmp(ZSTR_VAL(key), "use_function_desc_cache", strlen("use_function_desc_cache")) == 0) {
+            if (strcasecmp(ZSTR_VAL(key), "use_function_desc_cache") == 0) {
                 convert_to_boolean(val);
 
                 intern->use_function_desc_cache = zend_is_true(val);
@@ -954,9 +954,12 @@ PHP_METHOD(RemoteFunction, invoke)
     intern = SAPNWRFC_FUNCTION_OBJ_P(getThis());
 
     rc = RfcIsConnectionHandleValid(intern->rfc_handle, &is_valid, &error_info);
-    if (rc != RFC_OK || is_valid == 0) {
-        sapnwrfc_throw_function_exception_ex("Failed to invoke function %s: connection closed.", ZSTR_VAL(intern->name));
-
+    if (rc != RFC_OK) {
+        sapnwrfc_throw_function_exception(error_info, "Failed to invoke function %s", ZSTR_VAL(intern->name));
+        RETURN_NULL();
+    }
+    if (!is_valid) {
+        sapnwrfc_throw_function_exception_ex("Failed to invoke function %s: connection closed", ZSTR_VAL(intern->name));
         RETURN_NULL();
     }
 
@@ -1138,9 +1141,12 @@ PHP_METHOD(RemoteFunction, setParameterActive)
     intern = SAPNWRFC_FUNCTION_OBJ_P(getThis());
 
     rc = RfcIsConnectionHandleValid(intern->rfc_handle, &is_valid, &error_info);
-    if (rc != RFC_OK || is_valid == 0) {
-        sapnwrfc_throw_function_exception_ex("Failed to set status of parameter %s: connection closed.", ZSTR_VAL(parameter_name));
-
+    if (rc != RFC_OK) {
+        sapnwrfc_throw_function_exception(error_info, "Failed to set status of parameter %s", ZSTR_VAL(parameter_name));
+        RETURN_NULL();
+    }
+    if (!is_valid) {
+        sapnwrfc_throw_function_exception_ex("Failed to set status of parameter %s: connection closed", ZSTR_VAL(parameter_name));
         RETURN_NULL();
     }
 
@@ -1166,9 +1172,12 @@ PHP_METHOD(RemoteFunction, isParameterActive)
     intern = SAPNWRFC_FUNCTION_OBJ_P(getThis());
 
     rc = RfcIsConnectionHandleValid(intern->rfc_handle, &is_valid, &error_info);
-    if (rc != RFC_OK || is_valid == 0) {
-        sapnwrfc_throw_function_exception_ex("Failed to get status of parameter %s: connection closed.", ZSTR_VAL(parameter_name));
-
+    if (rc != RFC_OK) {
+        sapnwrfc_throw_function_exception(error_info, "Failed to get status of parameter %s", ZSTR_VAL(parameter_name));
+        RETURN_NULL();
+    }
+    if (!is_valid) {
+        sapnwrfc_throw_function_exception_ex("Failed to get status of parameter %s: connection closed", ZSTR_VAL(parameter_name));
         RETURN_NULL();
     }
 
