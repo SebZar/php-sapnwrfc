@@ -4,8 +4,37 @@ All notable changes to this project will be documented in this file.
 Possibly breaking changes are marked with **BC break**.
 
 ## [Unreleased]
+
+## [2.2.0] - 2026-10-22
+### Added
+- `Connection::isOpen()` to check whether the connection handle is open, without a network round-trip
+- `Connection::reconnect()` to close and reopen a connection with the stored login parameters; `RemoteFunction` objects fetched before must be fetched again via `getFunction()`
+- Support for PHP 8.6 (built and tested against 8.6.0RC4)
+- Windows build script `build/build-windows.ps1` that builds all PHP variants (TS/NTS, vs16/vs17/vs18) in one run, and `build/publish-github-release.ps1` to publish the DLLs as a GitHub release
+
 ### Fixed
 - Throw `FunctionCallException` when connection closed in `RemoteFunction::setParameterActive()`, `RemoteFunction::isParameterActive()`
+- Throw `ConnectionException` instead of passing a closed handle to the SDK in `Connection::getAttributes()`, `Connection::ping()` and `Connection::getFunction()`
+- `RemoteFunction::invoke()` did not detect a failing `RfcCreateFunction` and continued with a NULL handle
+- Use-after-free and possible huge allocation when reading a TABLE parameter failed (#163)
+- Return values of `RfcMoveTo` and `RfcGetCurrentRow` were ignored when reading tables
+- Corrupt field names when setting table rows with multi-character field names
+- `Connection::getFunction()` ignored its `$invalidateCache` parameter
+- `Connection::getAttributes()` returned `partnerIP` as `partnerIPv6`
+- Double free in `RemoteFunction::getName()` and a reference leak in `Connection::getFunction()`
+- Memory leaks on several error paths in `getFunction()`, `invoke()`, table reads and `getFunctionDescription()`
+- `invoke()`, `Connection` options and connection parameters no longer change the caller's arrays (values were converted to string, float or bool in place)
+- INT values outside the 32-bit range were silently truncated; they now throw
+- INT2 rejected -32768; INT8 values were truncated to 32 bits on read
+- BCD/DECFLOAT read errors other than "buffer too small" were swallowed
+- Option `use_function_desc_cache` also matched keys that only started with that name
+- RFC error details were lost when the connection-handle check itself failed
+- Connection parameters with numeric keys could pass garbage entries to the SDK
+- `Connection::setTraceLevel()` wrote past its local variable on 64-bit builds
+- Wrong error message in `RemoteFunction::isParameterActive()`
+- NULL dereference when a SAP string could not be converted to UTF-8
+- Typo in an exception message of `Connection::getSSOTicket()`
+- Docblock errors in the IDE stub file
 
 
 ## [2.1.0] - 2024-05-21
