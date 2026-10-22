@@ -22,8 +22,22 @@ PHP versions and toolsets) in a single run with no manual VS environment setup.
 
 **Quick start:**
 
-1. Place PHP binary + devel zips, the PHP SDK zip, and the SAP NW RFC SDK zip in `build\php\`
-   and `build\sap\` respectively (see [`build/build-windows.md`](build/build-windows.md)).
+1. Place the PHP binary + devel zips and the PHP SDK zip in `build\php\`, and exactly one
+   SAP NW RFC SDK zip in `build\sap\`:
+
+```
+build\
+├── php\
+│   ├── php-8.5.12-Win32-vs17-x64.zip
+│   ├── php-8.5.12-nts-Win32-vs17-x64.zip
+│   ├── php-devel-pack-8.5.12-Win32-vs17-x64.zip
+│   ├── php-devel-pack-8.5.12-nts-Win32-vs17-x64.zip
+│   ├── ...                                   ← same four zips for every other PHP version
+│   └── php-sdk-binary-tools-php-sdk-2.7.1.zip
+└── sap\
+    └── nwrfc750P_20-70002755.zip
+```
+
 2. Run from the `build\` directory:
 
 ```powershell
@@ -33,10 +47,14 @@ PHP versions and toolsets) in a single run with no manual VS environment setup.
 Built DLLs land in `build\output\` with versioned filenames:
 
 ```
-php_sapnwrfc-2.1.0+php.8.3.31-ts-vs16-x64.sdk.7500.0.13.dll
+php_sapnwrfc-2.2.0+php.8.5.12-ts-vs17-x64.sdk.7540.719.35.dll
 ```
 
-See [`build/build-windows.md`](build/build-windows.md) for full prerequisites and options.
+Builds, loads and passes the offline test suite on Windows x64 with PHP 8.2, 8.3, 8.4, 8.5 and
+8.6.0RC4 (TS and NTS) and SAP NW RFC SDK 7.50 PL 20.
+
+See [`build/build-windows.md`](build/build-windows.md) for the full folder layout, prerequisites
+and options.
 
 ## API additions (this fork)
 
