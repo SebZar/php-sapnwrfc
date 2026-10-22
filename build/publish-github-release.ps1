@@ -135,34 +135,48 @@ if (-not $IncludePrereleasePhp) {
 foreach ($dll in $dlls) { Write-Host "  $($dll.Name)" }
 
 # ---------------------------------------------------------------------------
-# Package DLLs into a zip with checksums
+# Package DLLs into one zip per PHP version (TS + NTS) with checksums
 # ---------------------------------------------------------------------------
 Step "Packaging DLLs"
-
-$stageDir = Join-Path $env:TEMP "sapnwrfc_release_$([System.IO.Path]::GetRandomFileName().Replace('.',''))"
-$pkgName  = "php_sapnwrfc-$extVersion-windows-x64"
-$pkgDir   = Join-Path $stageDir $pkgName
-New-Item -ItemType Directory -Force $pkgDir | Out-Null
-
-foreach ($dll in $dlls) { Copy-Item $dll.FullName $pkgDir }
-foreach ($doc in @("LICENSE", "CHANGELOG.md")) {
-    $docPath = Join-Path $RepoRoot $doc
-    if (Test-Path $docPath) { Copy-Item $docPath $pkgDir }
-}
 
 # sha256sum-compatible lines: "<hash> *<file>", LF line endings so that
 # "sha256sum -c" also works on Linux
 function Get-Sha256Line([string]$path) {
     "$((Get-FileHash $path -Algorithm SHA256).Hash.ToLower()) *$(Split-Path $path -Leaf)`n"
 }
-$dllSums = ($dlls | Sort-Object Name | ForEach-Object { Get-Sha256Line $_.FullName }) -join ""
-[System.IO.File]::WriteAllText((Join-Path $pkgDir "SHA256SUMS.txt"), $dllSums)
 
-$zipPath = Join-Path $stageDir "$pkgName.zip"
-Compress-Archive -Path $pkgDir -DestinationPath $zipPath
-$zipSumPath = "$zipPath.sha256"
-[System.IO.File]::WriteAllText($zipSumPath, (Get-Sha256Line $zipPath))
-Write-Host "  $pkgName.zip ($($dlls.Count) DLLs, LICENSE, CHANGELOG.md, SHA256SUMS.txt)"
+$stageDir = Join-Path $env:TEMP "sapnwrfc_release_$([System.IO.Path]::GetRandomFileName().Replace('.',''))"
+New-Item -ItemType Directory -Force $stageDir | Out-Null
+
+# php_sapnwrfc-{ext}+php.{ver}-{ts|nts}-{toolset}-{arch}.sdk.{sdk}.dll
+#   -> php_sapnwrfc-{ext}+php.{ver}-{toolset}-{arch}.zip
+$groups = $dlls | Group-Object {
+    if ($_.Name -notmatch '^(.+\+php\.[^-]+)-(?:ts|nts)-([^.]+)\.sdk\.') { Fail "Unexpected DLL name: $($_.Name)" }
+    "$($Matches[1])-$($Matches[2])"
+} | Sort-Object Name
+
+$zipPaths = @()
+foreach ($group in $groups) {
+    $pkgName = $group.Name
+    $pkgDir  = Join-Path $stageDir $pkgName
+    New-Item -ItemType Directory -Force $pkgDir | Out-Null
+
+    foreach ($dll in $group.Group) { Copy-Item $dll.FullName $pkgDir }
+    foreach ($doc in @("LICENSE", "CHANGELOG.md")) {
+        $docPath = Join-Path $RepoRoot $doc
+        if (Test-Path $docPath) { Copy-Item $docPath $pkgDir }
+    }
+    $dllSums = ($group.Group | Sort-Object Name | ForEach-Object { Get-Sha256Line $_.FullName }) -join ""
+    [System.IO.File]::WriteAllText((Join-Path $pkgDir "SHA256SUMS.txt"), $dllSums)
+
+    $zipPath = Join-Path $stageDir "$pkgName.zip"
+    Compress-Archive -Path $pkgDir -DestinationPath $zipPath
+    $zipPaths += $zipPath
+    Write-Host "  $pkgName.zip ($($group.Count) DLLs)"
+}
+
+$zipSumPath = Join-Path $stageDir "SHA256SUMS.txt"
+[System.IO.File]::WriteAllText($zipSumPath, (($zipPaths | ForEach-Object { Get-Sha256Line $_ }) -join ""))
 
 # ---------------------------------------------------------------------------
 # Extract release notes from CHANGELOG.md
@@ -193,9 +207,9 @@ if (-not $notesFile) {
 Step "Creating GitHub release $Tag"
 
 $modeLabel = if ($Draft) { "draft " } else { "" }
-Write-Host "  Uploading $pkgName.zip as ${modeLabel}release..."
+Write-Host "  Uploading $($zipPaths.Count) zip(s) and SHA256SUMS.txt as ${modeLabel}release..."
 
-$ghArgs = @("release", "create", $Tag, $zipPath, $zipSumPath, "--repo", $repo)
+$ghArgs = @("release", "create", $Tag) + $zipPaths + @($zipSumPath, "--repo", $repo)
 $ghArgs += "--title", "v$extVersion"
 if ($notesFile) {
     $ghArgs += "--notes-file", $notesFile

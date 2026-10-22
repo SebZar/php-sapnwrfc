@@ -1,7 +1,7 @@
 # Publishing a GitHub release
 
 This script creates a GitHub release and uploads the Windows DLLs built by
-`build-windows.ps1` as one zip file. Release notes are pulled automatically
+`build-windows.ps1` as one zip file per PHP version. Release notes are pulled automatically
 from `CHANGELOG.md`. GitHub attaches the source code of the tag as `.zip` and
 `.tar.gz` to every release on its own.
 
@@ -93,7 +93,7 @@ php_sapnwrfc-2.2.0+php.8.3.36-nts-vs16-x64.sdk.7540.719.35.dll
 
 Only DLLs whose name starts with the current version (`php_sapnwrfc-2.2.0+`) are released.
 Delete DLLs built with an older SAP SDK from `build\output\` first, otherwise they end up in
-the zip as well.
+the zips as well.
 
 ### 5. Publish the release
 
@@ -108,28 +108,33 @@ The script:
 3. Takes the target repository from the `origin` remote, never from `upstream`
 4. Collects all `php_sapnwrfc-{version}+*.dll` files from `build\output\` and skips DLLs
    built against a PHP pre-release such as `8.6.0RC4` (see `-IncludePrereleasePhp`)
-5. Packs them into `php_sapnwrfc-{version}-windows-x64.zip` and writes a `.sha256` file for it
+5. Packs the TS and NTS DLL of each PHP version into one zip,
+   `php_sapnwrfc-{version}+php.{php_ver}-{toolset}-{arch}.zip`, and writes `SHA256SUMS.txt`
+   with the checksums of all zips
 6. Extracts the matching section from `CHANGELOG.md` as the release description
-7. Creates the release on GitHub and uploads the zip and its checksum
+7. Creates the release on GitHub and uploads the zips and `SHA256SUMS.txt`
 
 Release assets:
 
 ```
-php_sapnwrfc-2.2.0-windows-x64.zip
-php_sapnwrfc-2.2.0-windows-x64.zip.sha256
+php_sapnwrfc-2.2.0+php.8.2.35-vs16-x64.zip
+php_sapnwrfc-2.2.0+php.8.3.36-vs16-x64.zip
+php_sapnwrfc-2.2.0+php.8.4.27-vs17-x64.zip
+php_sapnwrfc-2.2.0+php.8.5.12-vs17-x64.zip
+SHA256SUMS.txt                                 ← checksums of the zips
 Source code (zip)                              ← added by GitHub
 Source code (tar.gz)                           ← added by GitHub
 ```
 
-Contents of the zip:
+Contents of one zip, e.g. `php_sapnwrfc-2.2.0+php.8.5.12-vs17-x64.zip`:
 
 ```
-php_sapnwrfc-2.2.0-windows-x64├── php_sapnwrfc-2.2.0+php.8.2.35-nts-vs16-x64.sdk.7540.719.35.dll
-├── php_sapnwrfc-2.2.0+php.8.2.35-ts-vs16-x64.sdk.7540.719.35.dll
-├── ...                                        ← one DLL per PHP version and TS/NTS
+php_sapnwrfc-2.2.0+php.8.5.12-vs17-x64\
+├── php_sapnwrfc-2.2.0+php.8.5.12-nts-vs17-x64.sdk.7540.719.35.dll
+├── php_sapnwrfc-2.2.0+php.8.5.12-ts-vs17-x64.sdk.7540.719.35.dll
 ├── CHANGELOG.md
 ├── LICENSE
-└── SHA256SUMS.txt                             ← checksums of all DLLs
+└── SHA256SUMS.txt                             ← checksums of the two DLLs
 ```
 
 The SAP NW RFC SDK DLLs are not included; users obtain the SDK from SAP themselves (SAP account required).
