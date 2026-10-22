@@ -59,14 +59,14 @@ typedef struct _sapnwrfc_function_object {
 // helpers for accessing the internal objects
 static inline sapnwrfc_connection_object *sapnwrfc_connection_object_fetch(zend_object *obj)
 {
-    return (sapnwrfc_connection_object *)((char *)obj - XtOffsetOf(sapnwrfc_connection_object, zobj));
+    return (sapnwrfc_connection_object *)((char *)obj - offsetof(sapnwrfc_connection_object, zobj));
 }
 #define SAPNWRFC_CONNECTION_OBJ_P(zv) SAPNWRFC_CONNECTION_OBJ(Z_OBJ_P(zv))
 #define SAPNWRFC_CONNECTION_OBJ(zo) sapnwrfc_connection_object_fetch(zo)
 
 static inline sapnwrfc_function_object *sapnwrfc_function_object_fetch(zend_object *obj)
 {
-    return (sapnwrfc_function_object *)((char *)obj - XtOffsetOf(sapnwrfc_function_object, zobj));
+    return (sapnwrfc_function_object *)((char *)obj - offsetof(sapnwrfc_function_object, zobj));
 }
 #define SAPNWRFC_FUNCTION_OBJ_P(zv) SAPNWRFC_FUNCTION_OBJ(Z_OBJ_P(zv))
 #define SAPNWRFC_FUNCTION_OBJ(zo) sapnwrfc_function_object_fetch(zo)
@@ -1101,7 +1101,7 @@ PHP_METHOD(RemoteFunction, invoke)
                 tmp = sapuc_to_zend_string(parameter_desc.name);
                 retval = rfc_get_parameter_value(function_handle, intern->function_desc_handle, tmp, rtrim_enabled);
 
-                if (ZVAL_IS_NULL(&retval)) {
+                if (Z_ISNULL_P(&retval)) {
                     zend_string_release(tmp);
                     RfcDestroyFunction(function_handle, &error_info);
                     // getting the parameter failed; an exception has been thrown
@@ -1239,7 +1239,7 @@ static void register_sapnwrfc_connection_object()
     zend_class_entry ce;
 
     memcpy(&sapnwrfc_connection_object_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
-    sapnwrfc_connection_object_handlers.offset = XtOffsetOf(sapnwrfc_connection_object, zobj);
+    sapnwrfc_connection_object_handlers.offset = offsetof(sapnwrfc_connection_object, zobj);
     sapnwrfc_connection_object_handlers.free_obj = sapnwrfc_connection_object_free;
     sapnwrfc_connection_object_handlers.clone_obj = NULL;
 
@@ -1261,7 +1261,7 @@ static void register_sapnwrfc_function_object()
     zend_class_entry ce;
 
     memcpy(&sapnwrfc_function_object_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
-    sapnwrfc_function_object_handlers.offset = XtOffsetOf(sapnwrfc_function_object, zobj);
+    sapnwrfc_function_object_handlers.offset = offsetof(sapnwrfc_function_object, zobj);
     sapnwrfc_function_object_handlers.free_obj = sapnwrfc_function_object_free;
     sapnwrfc_function_object_handlers.clone_obj = NULL;
 

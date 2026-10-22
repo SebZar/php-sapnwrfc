@@ -787,7 +787,7 @@ zval rfc_get_table_value(DATA_CONTAINER_HANDLE h, SAP_UC *name, unsigned char rt
         }
 
         line_value = rfc_get_table_line(line_handle, zname, rtrim_enabled);
-        if (ZVAL_IS_NULL(&line_value)) {
+        if (Z_ISNULL_P(&line_value)) {
             // error; exception has been thrown
             zval_ptr_dtor(&value);
             ZVAL_NULL(&value);
@@ -1155,7 +1155,7 @@ zval rfc_get_table_line(RFC_STRUCTURE_HANDLE line, zend_string *param_name, unsi
         }
 
         field_value = rfc_get_field_value(line, field_desc, rtrim_enabled);
-        if (ZVAL_IS_NULL(&field_value)) {
+        if (Z_ISNULL_P(&field_value)) {
             // error; exception has been thrown
             zval_ptr_dtor(&value);
             ZVAL_NULL(&value);
