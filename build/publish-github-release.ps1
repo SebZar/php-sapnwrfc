@@ -150,17 +150,18 @@ foreach ($doc in @("LICENSE", "CHANGELOG.md")) {
     if (Test-Path $docPath) { Copy-Item $docPath $pkgDir }
 }
 
-# sha256sum-compatible lines: "<hash> *<file>"
-$dllSums = $dlls | Sort-Object Name | ForEach-Object {
-    "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()) *$($_.Name)"
+# sha256sum-compatible lines: "<hash> *<file>", LF line endings so that
+# "sha256sum -c" also works on Linux
+function Get-Sha256Line([string]$path) {
+    "$((Get-FileHash $path -Algorithm SHA256).Hash.ToLower()) *$(Split-Path $path -Leaf)`n"
 }
-Set-Content -Path (Join-Path $pkgDir "SHA256SUMS.txt") -Value $dllSums -Encoding ASCII
+$dllSums = ($dlls | Sort-Object Name | ForEach-Object { Get-Sha256Line $_.FullName }) -join ""
+[System.IO.File]::WriteAllText((Join-Path $pkgDir "SHA256SUMS.txt"), $dllSums)
 
 $zipPath = Join-Path $stageDir "$pkgName.zip"
 Compress-Archive -Path $pkgDir -DestinationPath $zipPath
 $zipSumPath = "$zipPath.sha256"
-Set-Content -Path $zipSumPath -Encoding ASCII `
-    -Value "$((Get-FileHash $zipPath -Algorithm SHA256).Hash.ToLower()) *$pkgName.zip"
+[System.IO.File]::WriteAllText($zipSumPath, (Get-Sha256Line $zipPath))
 Write-Host "  $pkgName.zip ($($dlls.Count) DLLs, LICENSE, CHANGELOG.md, SHA256SUMS.txt)"
 
 # ---------------------------------------------------------------------------
