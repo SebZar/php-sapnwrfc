@@ -190,13 +190,24 @@ if ($Toolset) {
 Step "Preparing SAP NW RFC SDK"
 
 $sapZipDir = Join-Path $PSScriptRoot "sap"
-$sapZip    = Get-ChildItem -Path $sapZipDir -Filter "*.zip" -ErrorAction SilentlyContinue |
-             Select-Object -First 1
+$sapZips   = @(Get-ChildItem -Path $sapZipDir -Filter "*.zip" -ErrorAction SilentlyContinue)
 
-if (-not $sapZip) { Fail "No SAP NW RFC SDK zip found in $sapZipDir" }
+if ($sapZips.Count -eq 0) { Fail "No SAP NW RFC SDK zip found in $sapZipDir" }
+if ($sapZips.Count -gt 1) {
+    Fail "More than one SAP NW RFC SDK zip found in $sapZipDir - keep only the one to build with:`n  $(($sapZips | ForEach-Object { $_.Name }) -join "`n  ")"
+}
+$sapZip = $sapZips[0]
 
 New-Item -ItemType Directory -Force $WorkspaceDir | Out-Null
 $NwRfcSdkDir = Join-Path $WorkspaceDir "nwrfcsdk"
+
+# Re-extract when the SDK in the workspace came from a different zip
+$sdkSourceFile = Join-Path $WorkspaceDir "nwrfcsdk.source.txt"
+$sdkSource     = if (Test-Path $sdkSourceFile) { (Get-Content $sdkSourceFile -Raw).Trim() } else { "" }
+if ((Test-Path $NwRfcSdkDir) -and $sdkSource -ne $sapZip.Name) {
+    Write-Host "  Workspace SDK is from '$sdkSource', not '$($sapZip.Name)' - removing it"
+    Remove-Item $NwRfcSdkDir -Recurse -Force
+}
 
 if (-not (Test-Path $NwRfcSdkDir)) {
     Write-Host "  Extracting $($sapZip.Name) ..."
@@ -212,6 +223,7 @@ if (-not (Test-Path $NwRfcSdkDir)) {
     } else {
         Move-Item $sapTemp $NwRfcSdkDir
     }
+    Set-Content -Path $sdkSourceFile -Value $sapZip.Name -Encoding ASCII
 } else {
     Write-Host "  Already present: $NwRfcSdkDir"
 }
