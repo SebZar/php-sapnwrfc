@@ -138,8 +138,8 @@ foreach ($zip in $phpZips) {
     if ($zip.BaseName -match '-devel-') { continue }
     if ($zip.BaseName -match '^php-sdk-binary-tools-') { continue }
 
-    # php-{ver}[-nts]-Win32-{toolset}-{arch}
-    if ($zip.BaseName -match '^php-(\d+\.\d+\.\d+)(-nts)?-Win32-(vs\d+)-(x64|x86)$') {
+    # php-{ver}[-nts]-Win32-{toolset}-{arch}; {ver} may carry a pre-release suffix (8.6.0RC4)
+    if ($zip.BaseName -match '^php-(\d+\.\d+\.\d+(?:alpha\d+|beta\d+|RC\d+)?)(-nts)?-Win32-(vs\d+)-(x64|x86)$') {
         $isNts = $Matches[2] -eq '-nts'
         $variants += [PSCustomObject]@{
             ZipPath      = $zip.FullName
@@ -354,6 +354,16 @@ foreach ($v in $variants) {
         Write-Host "  Devel package already extracted at $develDir"
     }
 
+    # --- Clean previous build output ---
+    # nmake only compares timestamps, so objects from another PHP version would be
+    # relinked against this version's php8[ts].lib instead of being recompiled.
+    $releaseDir = if ($v.IsNts) { "$($v.Arch)\Release" } else { "$($v.Arch)\Release_TS" }
+    $releasePath = Join-Path $ExtSourceDir $releaseDir
+    if (Test-Path $releasePath) {
+        Write-Host "  Removing previous build output $releasePath"
+        Remove-Item $releasePath -Recurse -Force
+    }
+
     # --- Build ---
     # phpsdk -t sets up the full VS environment; inner bat only needs the devel pack on PATH
     $buildBat = @"
@@ -409,7 +419,6 @@ nmake || exit /b 1
     }
 
     # TS builds output to Release_TS, NTS to Release
-    $releaseDir  = if ($v.IsNts) { "$($v.Arch)\Release" } else { "$($v.Arch)\Release_TS" }
     $builtDll    = Join-Path $ExtSourceDir "$releaseDir\php_sapnwrfc.dll"
     $dllName     = "php_sapnwrfc-$extVersion+php.$($v.Version)-$($v.Label.ToLower())-$($v.Toolset)-$($v.Arch).sdk.$sdkVersion.dll"
     $destDir     = $OutputDir
