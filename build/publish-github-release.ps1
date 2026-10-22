@@ -23,6 +23,11 @@
 .PARAMETER Prerelease
     Mark the release as a pre-release on GitHub.
 
+.PARAMETER IncludePrereleasePhp
+    Also package DLLs built against PHP pre-releases (e.g. 8.6.0RC4). By default
+    they are left out, because a DLL built against a release candidate is not
+    guaranteed to load in the final PHP release.
+
 .EXAMPLE
     .\publish-github-release.ps1
     Create a release for the version in php_sapnwrfc.h, publish immediately.
@@ -40,7 +45,8 @@ param(
     [string]$Tag       = "",
     [string]$OutputDir = "",
     [switch]$Draft,
-    [switch]$Prerelease
+    [switch]$Prerelease,
+    [switch]$IncludePrereleasePhp
 )
 
 Set-StrictMode -Version Latest
@@ -88,6 +94,15 @@ if ($ghAuthExit -ne 0) {
 }
 Write-Host "  gh CLI authenticated"
 
+# Always release to origin; with several remotes (e.g. upstream) gh would
+# otherwise pick or prompt for a repository on its own.
+$originUrl = git -C $RepoRoot remote get-url origin 2>$null
+if ($originUrl -notmatch 'github\.com[:/]([^/]+/[^/]+?)(\.git)?$') {
+    Fail "Remote 'origin' ($originUrl) is not a GitHub repository"
+}
+$repo = $Matches[1]
+Write-Host "  Target repository : $repo"
+
 $remoteTag = git -C $RepoRoot ls-remote --tags origin "refs/tags/$Tag" 2>$null
 $gitLsRemoteExit = $LASTEXITCODE
 if ($gitLsRemoteExit -ne 0) {
@@ -111,7 +126,42 @@ if ($dlls.Count -eq 0) {
     Fail ("No DLLs found in $OutputDir.`n" +
           "  Run build-windows.ps1 first.")
 }
+if (-not $IncludePrereleasePhp) {
+    $skipped = @($dlls | Where-Object { $_.Name -match '\+php\.\d+\.\d+\.\d+(alpha|beta|RC)\d+-' })
+    foreach ($dll in $skipped) { Write-Host "  skipped (PHP pre-release): $($dll.Name)" }
+    $dlls = @($dlls | Where-Object { $skipped -notcontains $_ })
+    if ($dlls.Count -eq 0) { Fail "Only DLLs for PHP pre-releases found - use -IncludePrereleasePhp" }
+}
 foreach ($dll in $dlls) { Write-Host "  $($dll.Name)" }
+
+# ---------------------------------------------------------------------------
+# Package DLLs into a zip with checksums
+# ---------------------------------------------------------------------------
+Step "Packaging DLLs"
+
+$stageDir = Join-Path $env:TEMP "sapnwrfc_release_$([System.IO.Path]::GetRandomFileName().Replace('.',''))"
+$pkgName  = "php_sapnwrfc-$extVersion-windows-x64"
+$pkgDir   = Join-Path $stageDir $pkgName
+New-Item -ItemType Directory -Force $pkgDir | Out-Null
+
+foreach ($dll in $dlls) { Copy-Item $dll.FullName $pkgDir }
+foreach ($doc in @("LICENSE", "CHANGELOG.md")) {
+    $docPath = Join-Path $RepoRoot $doc
+    if (Test-Path $docPath) { Copy-Item $docPath $pkgDir }
+}
+
+# sha256sum-compatible lines: "<hash> *<file>"
+$dllSums = $dlls | Sort-Object Name | ForEach-Object {
+    "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()) *$($_.Name)"
+}
+Set-Content -Path (Join-Path $pkgDir "SHA256SUMS.txt") -Value $dllSums -Encoding ASCII
+
+$zipPath = Join-Path $stageDir "$pkgName.zip"
+Compress-Archive -Path $pkgDir -DestinationPath $zipPath
+$zipSumPath = "$zipPath.sha256"
+Set-Content -Path $zipSumPath -Encoding ASCII `
+    -Value "$((Get-FileHash $zipPath -Algorithm SHA256).Hash.ToLower()) *$pkgName.zip"
+Write-Host "  $pkgName.zip ($($dlls.Count) DLLs, LICENSE, CHANGELOG.md, SHA256SUMS.txt)"
 
 # ---------------------------------------------------------------------------
 # Extract release notes from CHANGELOG.md
@@ -142,10 +192,9 @@ if (-not $notesFile) {
 Step "Creating GitHub release $Tag"
 
 $modeLabel = if ($Draft) { "draft " } else { "" }
-Write-Host "  Uploading $($dlls.Count) DLL(s) as ${modeLabel}release..."
+Write-Host "  Uploading $pkgName.zip as ${modeLabel}release..."
 
-$ghArgs = @("release", "create", $Tag)
-$ghArgs += $dlls | ForEach-Object { $_.FullName }
+$ghArgs = @("release", "create", $Tag, $zipPath, $zipSumPath, "--repo", $repo)
 $ghArgs += "--title", "v$extVersion"
 if ($notesFile) {
     $ghArgs += "--notes-file", $notesFile
@@ -162,9 +211,10 @@ try {
     if ($notesFile -and (Test-Path $notesFile)) {
         Remove-Item $notesFile -Force -ErrorAction SilentlyContinue
     }
+    Remove-Item $stageDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-$releaseUrl = gh release view $Tag --json url --jq .url 2>$null
+$releaseUrl = gh release view $Tag --repo $repo --json url --jq .url 2>$null
 
 Step "Done"
 if ($Draft) {

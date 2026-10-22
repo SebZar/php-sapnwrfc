@@ -1,8 +1,9 @@
 # Publishing a GitHub release
 
 This script creates a GitHub release and uploads the Windows DLLs built by
-`build-windows.ps1` as release assets. Release notes are pulled automatically
-from `CHANGELOG.md`.
+`build-windows.ps1` as one zip file. Release notes are pulled automatically
+from `CHANGELOG.md`. GitHub attaches the source code of the tag as `.zip` and
+`.tar.gz` to every release on its own.
 
 ---
 
@@ -69,7 +70,7 @@ The publish script reads this section verbatim as the GitHub release description
 git add php_sapnwrfc.h docs/conf.py CHANGELOG.md
 git commit -m "release 2.2.0"
 git tag v2.2.0
-git push origin main --tags
+git push origin main v2.2.0
 ```
 
 The tag must exist in the remote repository before you run the publish script.
@@ -84,11 +85,15 @@ cd build
 This populates `build\output\` with one DLL per PHP variant, for example:
 
 ```
-php_sapnwrfc-2.2.0+php.8.2.31-nts-vs16-x64.sdk.7500.0.13.dll
-php_sapnwrfc-2.2.0+php.8.2.31-ts-vs16-x64.sdk.7500.0.13.dll
-php_sapnwrfc-2.2.0+php.8.3.31-nts-vs16-x64.sdk.7500.0.13.dll
+php_sapnwrfc-2.2.0+php.8.2.35-nts-vs16-x64.sdk.7540.719.35.dll
+php_sapnwrfc-2.2.0+php.8.2.35-ts-vs16-x64.sdk.7540.719.35.dll
+php_sapnwrfc-2.2.0+php.8.3.36-nts-vs16-x64.sdk.7540.719.35.dll
 ...
 ```
+
+Only DLLs whose name starts with the current version (`php_sapnwrfc-2.2.0+`) are released.
+Delete DLLs built with an older SAP SDK from `build\output\` first, otherwise they end up in
+the zip as well.
 
 ### 5. Publish the release
 
@@ -99,10 +104,35 @@ php_sapnwrfc-2.2.0+php.8.3.31-nts-vs16-x64.sdk.7500.0.13.dll
 The script:
 
 1. Reads the version from `php_sapnwrfc.h` and derives the tag (`v2.2.0`)
-2. Verifies the tag exists in git and that `gh` is authenticated
-3. Collects all `php_sapnwrfc-*.dll` files from `build\output\`
-4. Extracts the matching section from `CHANGELOG.md` as the release description
-5. Creates the release on GitHub and uploads all DLLs as assets
+2. Verifies that `gh` is authenticated and that the tag exists on `origin`
+3. Takes the target repository from the `origin` remote, never from `upstream`
+4. Collects all `php_sapnwrfc-{version}+*.dll` files from `build\output\` and skips DLLs
+   built against a PHP pre-release such as `8.6.0RC4` (see `-IncludePrereleasePhp`)
+5. Packs them into `php_sapnwrfc-{version}-windows-x64.zip` and writes a `.sha256` file for it
+6. Extracts the matching section from `CHANGELOG.md` as the release description
+7. Creates the release on GitHub and uploads the zip and its checksum
+
+Release assets:
+
+```
+php_sapnwrfc-2.2.0-windows-x64.zip
+php_sapnwrfc-2.2.0-windows-x64.zip.sha256
+Source code (zip)                              ← added by GitHub
+Source code (tar.gz)                           ← added by GitHub
+```
+
+Contents of the zip:
+
+```
+php_sapnwrfc-2.2.0-windows-x64├── php_sapnwrfc-2.2.0+php.8.2.35-nts-vs16-x64.sdk.7540.719.35.dll
+├── php_sapnwrfc-2.2.0+php.8.2.35-ts-vs16-x64.sdk.7540.719.35.dll
+├── ...                                        ← one DLL per PHP version and TS/NTS
+├── CHANGELOG.md
+├── LICENSE
+└── SHA256SUMS.txt                             ← checksums of all DLLs
+```
+
+The SAP NW RFC SDK DLLs are not included; users obtain the SDK from SAP themselves (SAP account required).
 
 ---
 
@@ -114,6 +144,7 @@ The script:
 | `-OutputDir` | Directory containing the built DLLs | `.\output` |
 | `-Draft` | Create as draft — lets you review before publishing | — |
 | `-Prerelease` | Mark as pre-release on GitHub | — |
+| `-IncludePrereleasePhp` | Also package DLLs built against PHP pre-releases (e.g. `8.6.0RC4`) | — |
 
 ---
 
