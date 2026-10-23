@@ -8,7 +8,7 @@ labels: question
 
 <!--
 
-Have you read the documentation at https://gkralik.github.io/php7-sapnwrfc ?
+Have you read the README and the examples in this repository?
 Have you searched for other issues with a similar question?
 
 If you still haven't found an answer, ask your question.
