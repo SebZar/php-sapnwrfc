@@ -1,0 +1,30 @@
+<?php
+
+/*
+ * Connection parameters for the examples.
+ *
+ * Copy this file to config.php and fill in your system. config.php is ignored
+ * by git, so credentials never end up in the repository.
+ *
+ * Any parameter from the sapnwrfc.ini documentation can be used here. Keys
+ * are case-insensitive.
+ */
+
+return [
+    // Direct connection to an application server
+    'ashost' => '<application server host>',
+    'sysnr'  => '00',
+
+    // Or load balancing via the message server instead of ashost/sysnr:
+    // 'mshost' => '<message server host>',
+    // 'sysid'  => '<system ID>',
+    // 'group'  => 'PUBLIC',
+
+    // If the system is only reachable through a SAProuter:
+    // 'saprouter' => '/H/<saprouter host>/H/',
+
+    'client' => '000',
+    'user'   => '<user>',
+    'passwd' => '<password>',
+    'lang'   => 'EN',
+];

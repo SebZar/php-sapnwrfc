@@ -57,3 +57,6 @@ configure.bat
 config.nice.bat
 configure.js
 *.log
+
+# Example credentials
+examples/config.php
